@@ -1,17 +1,64 @@
 :root {
   --background: #ffffff;
-  --foreground: #171717;
-}
+  --foreground: #343434;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --primary: #803CDA;
+  --slate-white:#FFFFFF;
+  --slate-100:#FBFBFC;
+  --slate-200:#F5F5F7;    
+  --slate-300:#ECEEF2;
+  --slate-400:#E5E5EF;
+  --slate-500:#CACAD5;  
+  --slate-600:#9999AB;
+  --slate-700:#838392;
+  --slate-800:#717182;
+  --slate-dark:#2A2A31;
 }
 
 html {
   height: 100%;
+}
+
+/* S : 640 px et plus */
+@media (min-width: 640px) {
+  html {
+    font-size: 17px; /* rem base */
+  }
+}
+
+/* M : 768 px et plus */
+@media (min-width: 768px) {
+  html {
+    font-size: 19px; /* rem base */
+  }
+}
+
+/* L : 1024 px et plus */
+@media (min-width: 1024px) {
+  html {
+    font-size: 22px; /* rem base */
+  }
+}
+
+/* XL : 1280 px et plus */
+@media (min-width: 1280px) {
+  html {
+    font-size: 29px; /* rem base */
+  }
+}
+
+/* 2XL : 1536 px et plus */
+@media (min-width: 1536px) {
+  html {
+    font-size: 34px; /* rem base */
+  }
+}
+
+/* 3XL : 1920 px et plus */
+@media (min-width: 1920px) {
+  html {
+    font-size: 39px; /* rem base */
+  }
 }
 
 html,
@@ -26,9 +73,11 @@ body {
   flex-direction: column;
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family:  var(--font-ibm-plex-sans), Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-weight: 400;
+  font-size: 1rem;
 }
 
 * {
@@ -42,8 +91,22 @@ a {
   text-decoration: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
+h1,h2,h3,h4,h5,h6{
+  font-weight: 400;
+  font-size: 2rem;
+}
+h2{
+  font-size: 1.75rem;
+}
+h3{
+  font-size: 1.5rem;
+}
+h4{
+  font-size: 1.25rem;
+}
+h5{
+  font-size: 1rem;
+}
+h6{
+  font-size: 0.875rem;
 }
