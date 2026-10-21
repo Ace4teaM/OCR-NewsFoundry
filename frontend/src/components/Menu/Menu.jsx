@@ -6,7 +6,6 @@ export default function Menu({data, children}) {
     
   // paramètres
   const { 
-    title = "newsfoundry",
     items = [
         {
             "title":"Discussion du",
