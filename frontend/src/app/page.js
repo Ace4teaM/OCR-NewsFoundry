@@ -1,13 +1,19 @@
-import Image from "next/image";
 import styles from "./page.module.css";
 
 import Menu from "@/components/Menu/Menu";
+import {Button} from "@/components/Buttons";
+import {Navigation} from "@/components/Icons";
 
 
 export default function Home() {
   return (
     <div className={styles.page}>
       <main className={styles.main}>
+        <Button style="primary" icon={Navigation}>Primary Button</Button>
+        <Button style="secondary">Secondary Button</Button>
+        <Button style="primary" icon={Navigation}></Button>
+        <Button style="primary" disabled>Désactivé</Button>
+
         <h1>Heading 3XL</h1>
         <p>This is a paragraph under the heading.</p>
         <h2>Heading 2XL</h2>
@@ -21,7 +27,7 @@ export default function Home() {
         <h6>Heading S</h6>
         <p>This is a paragraph under the sixth heading.</p>
 
-        <Menu data={{ title: "newsfoundry" }} />
+        <Menu data={{}} />
       </main>
     </div>
   );
