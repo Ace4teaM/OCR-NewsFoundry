@@ -1,0 +1,59 @@
+.page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    background-image:
+        linear-gradient(to right, var(--slate-800) 2px, transparent 1px),
+        linear-gradient(to bottom, var(--slate-800) 2px, transparent 1px);
+    background-size: 60px 60px;
+    background-color: var(--slate-dark);
+}
+
+.box{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 60px 30px;
+    background-color: var(--slate-white);
+    width: 500px;
+    gap: 30px;
+}
+
+.box p{
+    text-align: center;
+    color: var(--slate-700);
+    font-size: 0.8rem;
+}
+
+.box form{
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    flex-direction: column;
+    background-color: var(--slate-white);
+    gap: 10px;
+    width: 100%;
+}
+
+.box form > *{
+    width: 100%;
+}
+
+.box form input[type="mail"]{
+    background-color: var(--slate-300);
+    border: none;
+    border-radius: 10px;
+    padding: 10px;
+}
+
+.box form button[type="submit"]{
+    margin-top: 20px;
+}
+
+.icon{
+    color: var(--primary);
+}
