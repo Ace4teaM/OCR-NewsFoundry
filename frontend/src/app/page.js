@@ -1,6 +1,9 @@
 import Image from "next/image";
 import styles from "./page.module.css";
 
+import Menu from "@/components/Menu/Menu";
+
+
 export default function Home() {
   return (
     <div className={styles.page}>
@@ -17,6 +20,8 @@ export default function Home() {
         <p>This is a paragraph under the fifth heading.</p>
         <h6>Heading S</h6>
         <p>This is a paragraph under the sixth heading.</p>
+
+        <Menu data={{ title: "newsfoundry" }} />
       </main>
     </div>
   );
