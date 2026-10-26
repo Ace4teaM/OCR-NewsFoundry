@@ -2,32 +2,37 @@ import styles from "./page.module.css";
 
 import Menu from "@/components/Menu/Menu";
 import {Button} from "@/components/Buttons";
-import {Navigation} from "@/components/Icons";
+import {Navigation, Message, Document, Logo} from "@/components/Icons";
 
 
 export default function Home() {
   return (
     <div className={styles.page}>
-      <main className={styles.main}>
-        <Button style="primary" icon={Navigation}>Primary Button</Button>
-        <Button style="secondary">Secondary Button</Button>
-        <Button style="primary" icon={Navigation}></Button>
-        <Button style="primary" disabled>Désactivé</Button>
-
-        <h1>Heading 3XL</h1>
-        <p>This is a paragraph under the heading.</p>
-        <h2>Heading 2XL</h2>
-        <p>This is another paragraph under the second heading.</p>
-        <h3>Heading XL</h3>
-        <p>This is a paragraph under the third heading.</p>
-        <h4>Heading L</h4>
-        <p>This is a paragraph under the fourth heading.</p>
-        <h5>Heading M</h5>
-        <p>This is a paragraph under the fifth heading.</p>
-        <h6>Heading S</h6>
-        <p>This is a paragraph under the sixth heading.</p>
-
+      <aside>
         <Menu data={{}} />
+      </aside>
+      <main className={styles.main}>
+        <header>
+          <Button style="primary" icon={Message}>Chat</Button>
+          <Button style="secondary" icon={Document}>Revue de presse</Button>
+        </header>
+        <section>
+          <div className={styles.box}>
+              <Logo className={styles.icon}/>
+              <h2>Assistant Revue de Presse IA</h2>
+              <p>Posez-moi des questions sur l'actualité récente ou demandez-moi de générer une revue de presse sur un sujet spécifique.</p>
+              <div>Exemples:</div>
+              <ul>
+                  <li>"Quelles sont les dernières nouvelles en politique ?"</li>
+                  <li>"Génère une revue de presse sur la technologie"</li>
+                  <li>"Résume l'actualité économique de la semaine"</li>
+              </ul>
+          </div>
+        </section>
+        <footer>
+          <textarea placeholder="Tapez votre message ici..."></textarea>
+          <Button style="primary" disabled icon={Navigation}></Button>
+        </footer>
       </main>
     </div>
   );

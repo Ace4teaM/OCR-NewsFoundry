@@ -1,3 +1,102 @@
 .icon {
-    color: red;
+    display: flex;
+    color: var(--primary);
+    height: 67px;
+    margin: 0 0 16px 0;
+}
+
+.page{
+    grid-template-columns: 1fr 3fr;
+    display: grid;
+    height: 100vh;
+}
+
+.page > *{
+    height: 100%;
+    display: flex;
+    align-self: stretch;
+    min-height: 0;
+}
+
+.main{
+    display: flex;
+    flex-direction: column;
+}
+
+.main > *{
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 1rem;
+    background-color: #ffffff;
+}
+
+.main header {
+    flex: 0 0 auto;
+    height: 100px;
+}
+
+.main section {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0;
+    background-color: var(--slate-400);
+}
+
+.main footer {
+    flex: 0 0 auto;
+    height: 100px;
+    padding: 0 28px;
+}
+
+.main footer textarea{
+    height: 50px;
+    width: 90%;
+    background-color: var(--slate-200);
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--slate-700);
+    resize: none;
+    padding: 8px 12px;
+}
+
+.box{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--slate-white);
+    border-radius: 14px;
+    width: 544px;
+    margin: auto;
+    color: var(--slate-700);
+    padding: 40px;
+    font-size:16px;
+}
+
+.box li{
+    text-align: center;
+    list-style-type: disc;
+    list-style-position: inside;
+    margin: 10px 0;
+    font-size:14px;
+}
+
+.box h2{
+    color: var(--primary);
+    margin: 0 0 26px 0;
+    font-size:32px;
+}
+
+.box p{
+    text-align: center;
+    margin: 0 0 26px 0;
+    padding: 0 28px;
+}
+
+.box div{
+    font-weight: bold;
+    font-size:14px;
 }
