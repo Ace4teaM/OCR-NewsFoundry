@@ -17,3 +17,4 @@ docker run --name newsfoundry_db -e POSTGRES_USER=user -e POSTGRES_PASSWORD=pass
 ```bash
 uv run --env-file .env src/main.py
 ```
+
