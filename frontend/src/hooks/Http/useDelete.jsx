@@ -1,44 +1,37 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { parseErrorMessage, parseAPIError } from "@/utils/error";
+import { parseResponseAPI, Result } from "@/utils/result";
+
  
-export default function Delete(url, handleAPIError = parseAPIError) {
-    const [data, setData] = useState({})
+export default function Delete(url, domain = process.env.NEXT_PUBLIC_API_URL, handleResponse = parseResponseAPI) {
+    const [result, setResult] = useState(null)
     const [isLoading, setLoading] = useState(false)
-    const [error, setError] = useState(false)
 
     const hasData = useMemo(
-        () => (isLoading == false && error == false && data && Object.keys(data).length > 0)
-    ,[isLoading, error, data])
+        () => (isLoading == false && result?.data)
+    ,[isLoading, result])
+
+    const hasError = useMemo(
+        () => (isLoading == false && result?.success == false)
+    ,[isLoading, result])
+
+    const hasSuccess = useMemo(
+        () => (isLoading == false && result?.success == true)
+    ,[isLoading, result])
 
     async function send() {
         try {
-            const response = await fetch(`${url}`, 
+            const response = await fetch(`${domain}${url}`, 
                 {
                     method: "DELETE",
                     credentials: "include"
                 }
             );
 
-            // La réponse attendue est de type JSON
-            const respData = await response.json().catch(() => null);
-            if (!respData)
-            {
-                throw new Error( "La réponse attendu par le serveur est invalide, veuillez reéssayer." );
-            }
-
-            // La requête a échouée ?
-            if (!response.ok)
-            {
-                throw new Error( handleAPIError(respData) ?? `Erreur HTTP ${response.status}`);
-            }
-            
-            setData(respData)
+            setResult(await handleResponse(response))
         } catch (err) {
-            const msg = parseErrorMessage(err)
-            setError(true)
-            setData(msg)
+            setResult(new Result(false, null, err?.message))
         } finally {
             setLoading(false)
         }
@@ -51,10 +44,10 @@ export default function Delete(url, handleAPIError = parseAPIError) {
     const retry = ()=>{
         if (ready_to_delete()) {
             setLoading(true)
-            setError(false)
+            setResult(null)
             send()
         }
     }
 
-    return { data, isLoading, error, hasData, retry }
+    return { data: result?.data, isLoading, error: result?.error, hasData, hasError, hasSuccess, result, retry }
 }

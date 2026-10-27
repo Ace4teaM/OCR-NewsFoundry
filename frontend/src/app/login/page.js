@@ -7,6 +7,7 @@ import {LogoLarge} from "@/components/Icons";
 import {usePost} from "@/hooks/Http";
 import { useRouter } from "next/navigation";
 import { useId, useState, useEffect } from "react";
+import ErrorNotification from "@/components/ErrorNotification/ErrorNotification";
 
 
 export default function Page() {
@@ -15,18 +16,24 @@ export default function Page() {
   const password_id = useId();
   const email_id = useId();
 
+  const [ error, setError ] = useState(null)
+  
   const [ data, setData ] = useState(null)
-  const login = usePost(`${process.env.NEXT_PUBLIC_API_URL}/login`, data)
+  const login = usePost(`/login`, data)
 
   useEffect(()=>{
-    if(login.hasData == false)
-      return
+    if(login.hasError == true)
+    {
+      setError(login.result.error);
+    }
+  }, [login.hasError])
 
-    if(login.data.success)
+  useEffect(()=>{
+    if(login.hasSuccess == true)
     {
       router.push("/");
     }
-  }, [login.hasData])
+  }, [login.hasSuccess])
 
   const handleSubmit = (e) => {
     e.preventDefault(); // Empêche la soumission du formulaire
@@ -40,6 +47,13 @@ export default function Page() {
   return (
     <div className={styles.page}>
       <main className={styles.main}>
+      {error && (
+        <ErrorNotification
+          message={error}
+          onClose={() => setError(null)}
+          duration={5000}
+        />
+      )}
         <div className={styles.box}>
             <LogoLarge className={styles.icon}/>
             <p>Connectez-vous pour accéder à votre assistant d'actualités IA</p>
