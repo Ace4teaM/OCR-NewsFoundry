@@ -1,19 +1,53 @@
+"use client"
+
 import styles from "./page.module.css";
 
 import {Button} from "@/components/Buttons";
 import {LogoLarge} from "@/components/Icons";
+import {usePost} from "@/hooks/Http";
+import { useRouter } from "next/navigation";
+import { useId, useState, useEffect } from "react";
 
 
 export default function Page() {
+  const router = useRouter();
+
+  const password_id = useId();
+  const email_id = useId();
+
+  const [ data, setData ] = useState(null)
+  const login = usePost(`${process.env.NEXT_PUBLIC_API_URL}/login`, data)
+
+  useEffect(()=>{
+    if(login.hasData == false)
+      return
+
+    if(login.data.success)
+    {
+      router.push("/");
+    }
+  }, [login.hasData])
+
+  const handleSubmit = (e) => {
+    e.preventDefault(); // Empêche la soumission du formulaire
+    
+    const formData = new FormData(e.target)
+    const data = Object.fromEntries(formData.entries())
+
+    setData(data);
+  };
+
   return (
     <div className={styles.page}>
       <main className={styles.main}>
         <div className={styles.box}>
             <LogoLarge className={styles.icon}/>
             <p>Connectez-vous pour accéder à votre assistant d'actualités IA</p>
-            <form>
-                <label htmlFor="mail">Adresse email</label>
-                <input type="mail" name="mail" placeholder="votre.email@exemple.com" />
+            <form onSubmit={(e)=>handleSubmit(e)}>
+                <label htmlFor={email_id}>Adresse email</label>
+                <input id={email_id} type="mail" name="email" placeholder="votre.email@exemple.com" />
+                <label htmlFor={password_id}>Mot de passe</label>
+                <input id={password_id} name="password" type="password"></input>
                 <Button type="submit" style="secondary">Se connecter</Button>
             </form>
         </div>

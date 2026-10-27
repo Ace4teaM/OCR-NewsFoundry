@@ -43,7 +43,8 @@
     width: 100%;
 }
 
-.box form input[type="mail"]{
+.box form input[type="mail"], 
+.box form input[type="password"]{
     background-color: var(--slate-300);
     border: none;
     border-radius: 10px;
