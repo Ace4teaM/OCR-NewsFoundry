@@ -2,29 +2,29 @@
 
 import styles from "./page.module.css";
 
+import { useAppContext } from "@/contexts/AppContext";
+
 import {Button} from "@/components/Buttons";
 import {LogoLarge} from "@/components/Icons";
 import {usePost} from "@/hooks/Http";
 import { useRouter } from "next/navigation";
 import { useId, useState, useEffect } from "react";
-import ErrorNotification from "@/components/ErrorNotification/ErrorNotification";
-
 
 export default function Page() {
   const router = useRouter();
 
+  const { setError } = useAppContext();
+
   const password_id = useId();
   const email_id = useId();
 
-  const [ error, setError ] = useState(null)
-  
   const [ data, setData ] = useState(null)
   const login = usePost(`/login`, data)
 
   useEffect(()=>{
     if(login.hasError == true)
     {
-      setError(login.result.error);
+      setError(login.result.message);
     }
   }, [login.hasError])
 
@@ -47,13 +47,6 @@ export default function Page() {
   return (
     <div className={styles.page}>
       <main className={styles.main}>
-      {error && (
-        <ErrorNotification
-          message={error}
-          onClose={() => setError(null)}
-          duration={5000}
-        />
-      )}
         <div className={styles.box}>
             <LogoLarge className={styles.icon}/>
             <p>Connectez-vous pour accéder à votre assistant d'actualités IA</p>

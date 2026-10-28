@@ -3,13 +3,13 @@
  * Représente un objet de résultat utilisée par les mééthodes et requêtes de l'application
  * @param success {bool} - Indique si le traitement est un succès
  * @param data - Les données du résultat
- * @param error - Le message d'erreur si le traitement a échoué
+ * @param message - Le message du résultat
  */
 export class Result {
-  constructor(success, data = null, error = null) {
+  constructor(success, data = null, message = null) {
     this.success = success;
     this.data = data;
-    this.error = error;
+    this.message = message;
   }
 
   isSuccess() {
@@ -39,13 +39,13 @@ export async function parseResponseAPI(response){
     // La requête a réussie ?
     if (respData?.success == true)
     {
-        return new Result(true, respData);
+        return new Result(true, respData?.data, respData?.message);
     }
 
-    // La requête a réussie ?
+    // La requête a échouée ?
     if (respData?.success == false)
     {
-        return new Result(false, respData, respData?.message ?? "Erreur inconnue");
+        return new Result(false, respData?.data, respData?.message ?? "Erreur inconnue");
     }
 
     throw new Error("Réponse inattendue du serveur");

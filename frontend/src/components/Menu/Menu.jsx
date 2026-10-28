@@ -1,52 +1,51 @@
 import { LogoLarge } from "@/components/Icons";
 import DisconnectButton from "./DisconnectButton";
+import MenuItem from "./MenuItem";
 import styles from "./Menu.module.css";
 
-export default function Menu({data, children}) {
-    
+export default function Menu({data, setSelectedItem, selectedItem, disconnectAction, children}) {
+
   // paramètres
   const { 
     items = [
         {
             "title":"Discussion du",
-            "date": "2026-10-12"
+            "created_at": "2026-10-12"
         },
         {
             "title":"Discussion du",
-            "date": "2026-10-12"
+            "created_at": "2026-10-12"
         },
         {
             "title":"Discussion du",
-            "date": "2026-10-12"
+            "created_at": "2026-10-12"
         },
         {
             "title":"Discussion du",
-            "date": "2026-10-12"
+            "created_at": "2026-10-12"
         },
         {
             "title":"Discussion du",
-            "date": "2026-10-12"
+            "created_at": "2026-10-12"
         },
         {
             "title":"Discussion du",
-            "date": "2026-10-12"
+            "created_at": "2026-10-12"
         }
-    ],
-    disconnectAction
+    ]
   } = data;
 
   return (
     <nav className={styles.menu}>
         <header><LogoLarge className={styles.logo} /></header>
         <section>
+            {items &&
             <ul>
                 {items.map((item, index) => (
-                    <li key={index}>
-                        <span>{item.title}</span>
-                        <span className={styles.date}>{item.date}</span>
-                    </li>
+                    <MenuItem key={index} data={item} onSelect={setSelectedItem} />
                 ))}
             </ul>
+            }
         </section>
         <footer><DisconnectButton data={{disconnectAction}} /></footer>
     </nav>

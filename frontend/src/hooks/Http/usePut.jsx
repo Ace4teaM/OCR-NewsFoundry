@@ -60,5 +60,5 @@ export default function Put(url, put, domain = process.env.NEXT_PUBLIC_API_URL, 
         }
     }, [url, put])
 
-    return { data: result?.data, isLoading, error: result?.error, hasData, hasError, hasSuccess, retry, result }
+    return { data: result?.data, isLoading, error: result?.message, hasData, hasError, hasSuccess, retry, result }
 }

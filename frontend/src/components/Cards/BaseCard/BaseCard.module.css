@@ -1,0 +1,32 @@
+.container
+{
+    position: relative;
+    background-color: #FFFFFF;
+    color: #000000;
+    border-radius: 10px;
+    border: none;
+    padding: 30px 34px 30px 34px;
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+    color: #6B7280;
+    font-size: 0.9em;
+}
+
+.container header > h2
+{
+    font-weight: 600;
+    color: black;
+    margin-bottom: 0.2em;
+}
+
+@media (max-width: 768px) {
+  .container
+    {
+        padding: 16px 8px 16px 8px;
+    }
+}

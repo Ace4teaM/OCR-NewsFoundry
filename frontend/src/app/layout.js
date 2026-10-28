@@ -1,5 +1,6 @@
 import { Geist, Geist_Mono, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
+import { AppProvider } from "@/contexts/AppContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,8 +24,10 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${ibmPlexSans.variable}`}>
-      <body>{children}</body>
-    </html>
+    <AppProvider>
+      <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${ibmPlexSans.variable}`}>
+        <body>{children}</body>
+      </html>
+    </AppProvider>
   );
 }

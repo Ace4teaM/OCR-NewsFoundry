@@ -49,5 +49,5 @@ export default function Delete(url, domain = process.env.NEXT_PUBLIC_API_URL, ha
         }
     }
 
-    return { data: result?.data, isLoading, error: result?.error, hasData, hasError, hasSuccess, result, retry }
+    return { data: result?.data, isLoading, error: result?.message, hasData, hasError, hasSuccess, result, retry }
 }

@@ -1,0 +1,29 @@
+
+.container{
+  margin: auto;
+  border: none;
+  background: none;
+}
+
+.content{
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  font-family: var(--font-inter);
+}
+
+.closeBtn{
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+    .container{
+        width: fit-content;
+        max-width: 100vw;
+    }
+}

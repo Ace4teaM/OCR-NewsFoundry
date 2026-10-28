@@ -60,5 +60,5 @@ export default function usePost(url, post, domain = process.env.NEXT_PUBLIC_API_
         }
     }, [url, post])
 
-    return { data: result?.data, isLoading, error: result?.error, hasData, hasError, hasSuccess, result, retry }
+    return { data: result?.data, isLoading, error: result?.message, hasData, hasError, hasSuccess, result, retry }
 }
