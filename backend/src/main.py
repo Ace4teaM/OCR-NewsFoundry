@@ -1,4 +1,7 @@
+import json
+from fastapi import FastAPI, Depends, HTTPException
 import os
+from datetime import date, datetime
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
@@ -7,10 +10,10 @@ from fastapi import FastAPI, HTTPException, status, Response, Cookie, Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
-from sqlmodel import Session, select
+from sqlmodel import Session, insert, select
 import bcrypt
 import uvicorn
-from models import User
+from models import Chat, User
 import bcrypt
 import jwt
 
@@ -43,6 +46,7 @@ class ResponseApi():
     """Données d'une réponse structurée de l'API"""
     success: bool
     message: str
+    data: dict | None = None
 
 
 
@@ -232,6 +236,117 @@ async def read_current_user(
     }
 
 
+
+@app.post("/chats")
+async def chats(title: str, current_user: Annotated[User, Depends(get_current_user)]):
+    """
+    Crée un nouveau chat pour l'utilisateur authentifié.
+
+    Recherche l'utilisateur par son adresse e-mail et vérifie son
+    mot de passe à l'aide de bcrypt. Si les identifiants sont valides,
+    crée un nouveau chat associé à cet utilisateur.
+
+    Args:
+        title: Titre du chat à créer.
+        current_user: Utilisateur actuellement authentifié.
+
+    Returns:
+        Un message confirmant la création du chat.
+        Le dictionnaire de données contient l'identifiant du chat créé.
+
+    Raises:
+        HTTPException: Si l'utilisateur n'est pas authentifié.
+    """
+    with Session(engine) as session:
+        statement = insert(Chat).values(
+            user_id=current_user.id,
+            title=title,
+            messages="[]"
+        ).returning(Chat.id)
+        chat_id = session.exec(statement).scalar_one()
+        session.commit()
+        return ResponseApi(success=True, message="Chat créé avec succès", data={"id": chat_id})
+
+@app.get("/chats")
+async def get_chats(
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    """
+    retourne les chats d'un utilisateur authentifié.
+
+    L'utilisateur est identifié et validé par la dépendance
+    get_current_user avant l'exécution de cette fonction.
+
+    Args:
+        current_user: Utilisateur authentifié récupéré depuis la BDD.
+
+    Returns:
+        L'historique des chats.
+    """
+    with Session(engine) as session:
+        statement = select(Chat.id, Chat.title, Chat.created_at).where(
+            Chat.user_id == current_user.id
+        )
+        chats = session.exec(statement).all()
+        
+        return ResponseApi(success=True, message="Chats trouvés", data=[
+            {
+                "id": chat.id,
+                "title": chat.title,
+                "created_at": chat.created_at,
+            }
+            for chat in chats
+        ])
+    
+@app.get("/chats/{chat_id}")
+async def get_chat(
+    chat_id: int,
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    """
+    retourne l’historique de la discussion pour l’afficher à l’utilisateur
+
+    L'utilisateur est identifié et validé par la dépendance
+    get_current_user avant l'exécution de cette fonction.
+
+    Args:
+        chat_id: Identifiant du chat dont on souhaite récupérer l'historique.
+        current_user: Utilisateur authentifié récupéré depuis la BDD.
+
+    Returns:
+        L'historique des messages du chat spécifié.
+    """
+    with Session(engine) as session:
+        chat = session.get(Chat, chat_id)
+        if not chat or chat.user_id != current_user.id:
+            raise HTTPException(status_code=404, detail="Chat introuvable")
+        return ResponseApi(success=True, message="Chat trouvé", data={
+            "id": chat.id,
+            "title": chat.title,
+            "created_at": chat.created_at,
+            "messages": chat.messages,
+        })
+
+@app.post("/chats/{chat_id}/messages")
+def create_message(
+    chat_id: int,
+    current_user: Annotated[User, Depends(get_current_user)],
+    new_message: str
+):
+    with Session(engine) as session:
+        chat = session.get(Chat, chat_id)
+        if not chat or chat.user_id != current_user.id:
+            raise HTTPException(status_code=404, detail="Chat introuvable")
+        messages = json.loads(chat.messages)
+        response = "réponse du LLM"
+        message = {"date": datetime.now().isoformat(), "message": new_message, "response": response}
+        messages.append(message)
+        chat.messages = json.dumps(messages)
+        session.add(chat)
+        session.commit()
+    return ResponseApi(success=True, message="Message ajouté avec succès", data={
+        "message": message
+    })
 
 if __name__ == "__main__":
     init_db()
