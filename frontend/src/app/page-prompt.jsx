@@ -4,7 +4,7 @@ import { useAppContext } from "@/contexts/AppContext";
 import { usePageContext } from "./page-context.jsx";
 
 import { useRouter } from "next/navigation";
-import {useState, useEffect} from "react";
+import {useState, useEffect, useRef} from "react";
 import {usePost} from "@/hooks/Http";
 import styles from "./page.module.css";
 import {Button} from "@/components/Buttons";
@@ -13,6 +13,8 @@ import {Navigation} from "@/components/Icons";
 
 export default function Component() {
   const router = useRouter();
+
+  const formRef = useRef(null);
 
   const { selectedItem, messages, setMessages } = usePageContext();
   const { setError } = useAppContext();
@@ -63,6 +65,13 @@ export default function Component() {
     }
   }, [post.hasSuccess])
 
+    function handleKeyDown(event) {
+        if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            formRef.current?.requestSubmit();
+        }
+    }
+
   const handleSubmit = (e) => {
     e.preventDefault(); // Empêche la soumission du formulaire
     
@@ -97,8 +106,12 @@ export default function Component() {
   };
 
   return (
-    <form className={styles.footer} onSubmit={handleSubmit}>
-        <textarea name="message" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Tapez votre message ici..."></textarea>
+    <form ref={formRef} className={styles.footer} onSubmit={handleSubmit}>
+        <textarea name="message" 
+            value={prompt} 
+            onChange={(e) => setPrompt(e.target.value)} 
+            onKeyDown={handleKeyDown}
+            placeholder="Tapez votre message ici..."></textarea>
         <Button type="submit" style="primary" disabled={!prompt} icon={Navigation}></Button>
     </form>
   );
