@@ -68,6 +68,7 @@ export function PageProvider({ searchParams, children }) {
     // si la sélection change on définit le paramètre chat_id dans l'URL (sans rechargement)
     useEffect(() => {
         if (!selectedItem) {
+            setMessages([]);
             return;
         }
 

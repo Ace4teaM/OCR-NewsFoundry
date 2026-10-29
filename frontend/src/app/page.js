@@ -2,10 +2,9 @@ import styles from "./page.module.css";
 
 import { PageProvider } from "./page-context";
 
-import {Button} from "@/components/Buttons";
-import { Message, Document } from "@/components/Icons";
 import Menu from "./page-menu.jsx";
 import Chat from "./page-chat.jsx";
+import Actions from "./page-actions.jsx";
 import Prompt from "./page-prompt.jsx";
 
 export default async function Home({ searchParams }) {
@@ -19,8 +18,7 @@ export default async function Home({ searchParams }) {
         </aside>
         <main className={styles.main}>
           <header>
-            <Button style="primary" icon={Message}>Chat</Button>
-            <Button style="secondary" icon={Document}>Revue de presse</Button>
+            <Actions />
           </header>
           <section>
             <Chat />
