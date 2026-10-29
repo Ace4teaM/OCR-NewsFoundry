@@ -7,10 +7,12 @@ export default function DisconnectButton({data}) {
     
   // paramètres
   const { 
-    disconnectAction = () => console.log("Déconnexion")
+    isLogged = false, 
+    loginAction = () => console.log("Connexion"),
+    logoutAction = () => console.log("Déconnexion")
   } = data;
 
   return (
-    <button onClick={(e)=>disconnectAction()}><Logout /> Se déconnecter</button>
+    <button onClick={(e)=>isLogged ? logoutAction() : loginAction()}><Logout /> {isLogged ? "Se déconnecter" : "Se connecter"}</button>
   );
 }

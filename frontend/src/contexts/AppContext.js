@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, useRef } from "react";
 import {ModalDialog} from "@/components/Containers";
 import ErrorNotification from "@/components/ErrorNotification/ErrorNotification";
+import { fetchApi } from "@/utils/http";
 
 const AppContext = createContext(null);
 
@@ -11,7 +12,8 @@ export function AppProvider({ children }) {
   const [dialog, setDialog] = useState(null);
   const dialogRef = useRef(null);
   const [ error, setError ] = useState(null)
-
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   function openDialog(Component, props = {}, success = () => {}, resolve = (result) => {}) {
       setDialog({
@@ -38,6 +40,33 @@ export function AppProvider({ children }) {
 
   },[dialog])
 
+  useEffect(() => {
+      async function checkAuth() {
+          try {
+              const result = await fetchApi("me");
+
+              if(result.success == false)
+              {
+                  console.info("utilisateur non authentifié");
+                  setUser(null);
+                  return;
+              }
+
+              console.info("utilisateur authentifié");
+              setUser(result.data);
+          } catch (error) {
+              console.error("erreur vérif authentifié", error);
+              setUser(undefined);
+          } finally {
+              setLoading(false);
+          }
+      }
+
+      checkAuth();
+  }, []);
+
+  const isLogged = !!user;
+
   return (
     <AppContext.Provider
       value={{
@@ -47,6 +76,10 @@ export function AppProvider({ children }) {
         closeDialog,
         setError,
         error,
+        user,
+        setUser,
+        isLogged,
+        loading
       }}
     >
       {children}

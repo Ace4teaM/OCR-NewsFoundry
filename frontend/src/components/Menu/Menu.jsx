@@ -3,7 +3,7 @@ import DisconnectButton from "./DisconnectButton";
 import MenuItem from "./MenuItem";
 import styles from "./Menu.module.css";
 
-export default function Menu({data, setSelectedItem, selectedItem, disconnectAction, children}) {
+export default function Menu({data, setSelectedItem, selectedItem, isLogged, logoutAction, loginAction, children}) {
 
   // paramètres
   const { 
@@ -47,7 +47,7 @@ export default function Menu({data, setSelectedItem, selectedItem, disconnectAct
             </ul>
             }
         </section>
-        <footer><DisconnectButton data={{disconnectAction}} /></footer>
+        <footer><DisconnectButton data={{isLogged, logoutAction, loginAction}} /></footer>
     </nav>
   );
 }

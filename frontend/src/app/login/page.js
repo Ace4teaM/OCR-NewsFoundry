@@ -13,7 +13,7 @@ import { useId, useState, useEffect } from "react";
 export default function Page() {
   const router = useRouter();
 
-  const { setError } = useAppContext();
+  const { setError, setUser } = useAppContext();
 
   const password_id = useId();
   const email_id = useId();
@@ -24,6 +24,7 @@ export default function Page() {
   useEffect(()=>{
     if(login.hasError == true)
     {
+      console.info("hasError")
       setError(login.result.message);
     }
   }, [login.hasError])
@@ -31,6 +32,8 @@ export default function Page() {
   useEffect(()=>{
     if(login.hasSuccess == true)
     {
+      console.info("hasSuccess")
+      setUser(login.result.data);
       router.push("/");
     }
   }, [login.hasSuccess])
@@ -40,6 +43,8 @@ export default function Page() {
     
     const formData = new FormData(e.target)
     const data = Object.fromEntries(formData.entries())
+
+    console.log("LOGIN ********************************", data);
 
     setData(data);
   };

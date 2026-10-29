@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useRef } from "react";
-import { fetchApi } from "@/utils/http";
+import { fetchApi, postApi } from "@/utils/http";
 import { useRouter } from "next/navigation";
 import { useAppContext } from "@/contexts/AppContext";
 
@@ -15,20 +15,44 @@ export function PageProvider({ searchParams, children }) {
   const [ selectedItem, setSelectedItem ] = useState(null)
   const [ items, setItems ] = useState([])
   const [ messages, setMessages ] = useState([])
-  const { setError } = useAppContext();
+  const { setError, setUser, user } = useAppContext();
 
   const router = useRouter();
   
     const chatId = Number(searchParams?.chat_id);
     const hasRun = useRef(false);
 
-    // si le paramètre chat_id est présent, on charge le chat correspondant
+    const login = () => {
+        console.log("Redirecting to login");
+        router.replace("/login", { scroll: false });
+    };
+
+    const logout = async () => {
+        try {
+            console.log("Logging out");
+            const result = await postApi(`logout`);
+
+            if(result.success == false)
+                throw new Error(result.message);
+
+            setUser(null);
+        } catch (error) {
+            setError(error.message);
+        }
+    };
+
+    // liste les chats de l'utilisateur authentifié
     useEffect(() => {
 
         // Code exécuté une seule fois
-        if (hasRun.current) return;
-        hasRun.current = true;
+        if (user === null){
+            window.location.replace("/login");
+            return;
+        }
 
+        if (user === undefined){
+            return;
+        }
 
         /**
          * Charge le chat depuis l'API.
@@ -47,7 +71,7 @@ export function PageProvider({ searchParams, children }) {
         }
 
         fetchChats();
-    }, []);
+    }, [user]);
 
     // si le paramètre chat_id est présent, on sélectionne le chat correspondant
     useEffect(() => {
@@ -101,7 +125,7 @@ export function PageProvider({ searchParams, children }) {
 
     return (
         <PageContext.Provider
-            value={{ selectedItem, setSelectedItem, items, setItems, messages, setMessages }}
+            value={{ selectedItem, setSelectedItem, items, setItems, messages, setMessages, logoutAction: logout, loginAction: login }}
         >
             {children}
         </PageContext.Provider>

@@ -202,8 +202,10 @@ async def login(credentials: LoginRequest, response: Response):
             path="/",
         )
 
-        return ResponseApi(success=True, message="Connexion réussie")
-
+        return ResponseApi(success=True, message="Connexion réussie", data={
+            "id": user.id,
+            "email": user.email,
+        })
 
 @app.post("/logout")
 async def logout(response: Response):
@@ -242,10 +244,11 @@ async def read_current_user(
     Returns:
         L'identifiant et l'adresse e-mail de l'utilisateur.
     """
-    return {
+    
+    return ResponseApi(success=True, message="Utilisateur authentifié", data={
         "id": current_user.id,
         "email": current_user.email,
-    }
+    })
 
 
 

@@ -48,5 +48,6 @@ export async function parseResponseAPI(response){
         return new Result(false, respData?.data, respData?.message ?? "Erreur inconnue");
     }
 
+    console.error("Réponse inattendue du serveur", response, respData);
     throw new Error("Réponse inattendue du serveur");
 }
