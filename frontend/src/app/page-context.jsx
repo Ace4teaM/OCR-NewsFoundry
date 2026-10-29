@@ -23,13 +23,11 @@ export function PageProvider({ searchParams, children }) {
     const hasRun = useRef(false);
 
     const login = () => {
-        console.log("Redirecting to login");
         router.replace("/login", { scroll: false });
     };
 
     const logout = async () => {
         try {
-            console.log("Logging out");
             const result = await postApi(`logout`);
 
             if(result.success == false)

@@ -44,8 +44,6 @@ export default function Page() {
     const formData = new FormData(e.target)
     const data = Object.fromEntries(formData.entries())
 
-    console.log("LOGIN ********************************", data);
-
     setData(data);
   };
 
