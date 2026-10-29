@@ -19,12 +19,6 @@ export default function Component() {
   const fetch = useFetch(fetchUrl)
 
   useEffect(() => {
-    if (selectedItem) {
-      console.log("selectedItem", selectedItem)
-    }
-  }, [selectedItem])
-
-  useEffect(() => {
     if (!fetchUrl) {
       setFetchUrl("/chats")
     }

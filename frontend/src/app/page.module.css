@@ -45,14 +45,20 @@
 }
 
 .main footer {
-    flex: 0 0 auto;
     height: 100px;
-    padding: 0 28px;
 }
 
-.main footer textarea{
+.footer {
+    flex: 1;
+    padding: 0 28px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+
+.footer textarea{
     height: 50px;
-    width: 90%;
     background-color: var(--slate-200);
     border: none;
     border-radius: 8px;
@@ -60,4 +66,10 @@
     color: var(--slate-700);
     resize: none;
     padding: 8px 12px;
+    flex: 1;
+}
+
+.footer button{
+    flex: 0 0 auto;
+    width: 50px;
 }

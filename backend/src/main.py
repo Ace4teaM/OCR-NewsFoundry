@@ -1,8 +1,7 @@
-import json
 from fastapi import FastAPI, Depends, HTTPException
 import os
-from datetime import date, datetime
 from dataclasses import dataclass
+import json
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 from database import init_db, engine
@@ -40,6 +39,16 @@ class LoginRequest(BaseModel):
     """Données nécessaires à l'authentification d'un utilisateur."""
     email: str
     password: str
+
+class CreateMessage(BaseModel):
+    """Données nécessaires à la création d'un message."""
+    chat_id: int
+    new_message: str
+
+class CreateChat(BaseModel):
+    """Données nécessaires à la création d'un chat."""
+    title: str
+    message: str | None = None
 
 @dataclass
 class ResponseApi():
@@ -136,6 +145,10 @@ def get_current_user(
         )
 
     return user
+
+
+def send_prompt(message: str) -> str:
+    return "Réponse LLM"
 
 
 @app.get("/")
@@ -238,16 +251,15 @@ async def read_current_user(
 
 
 @app.post("/chats")
-async def chats(title: str, current_user: Annotated[User, Depends(get_current_user)]):
+async def chats(data: CreateChat, current_user: Annotated[User, Depends(get_current_user)]):
     """
     Crée un nouveau chat pour l'utilisateur authentifié.
 
-    Recherche l'utilisateur par son adresse e-mail et vérifie son
-    mot de passe à l'aide de bcrypt. Si les identifiants sont valides,
-    crée un nouveau chat associé à cet utilisateur.
+    Crée un nouveau chat associé à l'utilisateur authentifié. Si un message initial est fourni,
+    il est envoyé au LLM et la réponse est ajoutée à l'historique des messages.
 
     Args:
-        title: Titre du chat à créer.
+        data: Données nécessaires à la création du chat.
         current_user: Utilisateur actuellement authentifié.
 
     Returns:
@@ -257,11 +269,31 @@ async def chats(title: str, current_user: Annotated[User, Depends(get_current_us
     Raises:
         HTTPException: Si l'utilisateur n'est pas authentifié.
     """
+
+    messages = []
+    if data.message:
+        response = send_prompt(data.message)
+        messages.append({
+            "date": datetime.now().isoformat(),
+            "message": data.message,
+            "type": "user"
+        })
+        try:
+            response = send_prompt(data.message)
+            messages.append({
+                "date": datetime.now().isoformat(),
+                "message": response,
+                "type": "system"
+            })
+        except Exception as e:
+            pass # si le LLM n'est pas dispo on conserve uniquement le message
+
+
     with Session(engine) as session:
         statement = insert(Chat).values(
             user_id=current_user.id,
-            title=title,
-            messages="[]"
+            title=data.title,
+            messages=json.dumps(messages)
         ).returning(Chat.id)
         chat_id = session.exec(statement).scalar_one()
         session.commit()
@@ -329,23 +361,24 @@ async def get_chat(
 
 @app.post("/chats/{chat_id}/messages")
 def create_message(
-    chat_id: int,
-    current_user: Annotated[User, Depends(get_current_user)],
-    new_message: str
+    data: CreateMessage,
+    current_user: Annotated[User, Depends(get_current_user)]
 ):
     with Session(engine) as session:
-        chat = session.get(Chat, chat_id)
+        chat = session.get(Chat, data.chat_id)
         if not chat or chat.user_id != current_user.id:
             raise HTTPException(status_code=404, detail="Chat introuvable")
         messages = json.loads(chat.messages)
+        new_message = data.message.strip()
         response = "réponse du LLM"
-        message = {"date": datetime.now().isoformat(), "message": new_message, "response": response}
-        messages.append(message)
+        messages.append({"date": datetime.now().isoformat(), "message": new_message, "type": "user"})
+        messages.append({"date": datetime.now().isoformat(), "message": response, "type": "system"})
         chat.messages = json.dumps(messages)
         session.add(chat)
         session.commit()
     return ResponseApi(success=True, message="Message ajouté avec succès", data={
-        "message": message
+        "message": new_message,
+        "response": response
     })
 
 if __name__ == "__main__":

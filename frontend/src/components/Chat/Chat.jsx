@@ -52,10 +52,12 @@ export default function Chat({data, children}) {
         {
             "date":"10:31",
             "message": "Peux-tu me donner les dernières actualités politiques ?",
+            "type": "user"
         },
         {
             "date":"10:31",
-            "response": `Voici un résumé des dernières nouvelles politiques :
+            "type": "system",
+            "message": `Voici un résumé des dernières nouvelles politiques :
 
 • Le gouvernement a annoncé de nouvelles mesures économiques
 • Débat sur la réforme des retraites au Parlement
@@ -65,6 +67,7 @@ Souhaitez-vous que je génère une revue de presse détaillée sur l'un de ces s
         },
         {
             "date":"10:32",
+            "type": "user",
             "message": `Je suis particulièrement curieux des applications 
 dans le domaine de la santé et de l'éducation.`
         },
@@ -100,10 +103,10 @@ dans le domaine de la santé et de l'éducation.`
         :
         <div className={styles.content} ref={containerRef}>
             {items.map((item, index) => (
-                <div key={index} className={styles.message} data-type={item.message ? "user" : "system"}>
-                    <div className={styles.text}>{item.message ?? item.response}</div>
+                <div key={index} className={styles.message} data-type={item.type}>
+                    <div className={styles.text}>{item.message}</div>
                     <div className={styles.date}>{formatDateTime(item.date)}</div>
-                    <div className={styles.icon}>{item.message ? <User /> : <Logo />}</div>
+                    <div className={styles.icon}>{item.type === "user" ? <User /> : <Logo />}</div>
                 </div>
             ))}
         </div>

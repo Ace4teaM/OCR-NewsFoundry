@@ -8,7 +8,6 @@ import {useFetch} from "@/hooks/Http";
 import styles from "./page.module.css";
 import Chat from "@/components/Chat/Chat";
 
-
 export default function Component() {
   const { selectedItem } = usePageContext();
   const { setError } = useAppContext();
@@ -17,12 +16,6 @@ export default function Component() {
 
   const [ fetchUrl, setFetchUrl ] = useState(null)
   const fetch = useFetch(fetchUrl)
-
-  useEffect(() => {
-    if (selectedItem) {
-      console.log("selectedItem", selectedItem)
-    }
-  }, [selectedItem])
 
   useEffect(() => {
     if (selectedItem) {
@@ -40,21 +33,7 @@ export default function Component() {
   useEffect(()=>{
     if(fetch.hasSuccess == true)
     {
-      const messages = JSON.parse(fetch?.result?.data?.messages);
-      // construit une suite de messages individuels à partir des données récupérées
-      let chatMessages = []
-      for (const msg of messages) {
-        if(msg.message)
-          chatMessages.push({
-            date: msg.date,
-            message: msg.message
-          });
-        if(msg.response)
-          chatMessages.push({
-            date: msg.date,
-            response: msg.response
-          });
-      }
+      const chatMessages = JSON.parse(fetch?.result?.data?.messages);
 
       setError(null);
       setItems(chatMessages);

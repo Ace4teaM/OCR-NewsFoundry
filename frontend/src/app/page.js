@@ -3,14 +3,16 @@ import styles from "./page.module.css";
 import { PageProvider } from "./page-context";
 
 import {Button} from "@/components/Buttons";
-import {Navigation, Message, Document, Logo} from "@/components/Icons";
+import { Message, Document } from "@/components/Icons";
 import Menu from "./page-menu.jsx";
 import Chat from "./page-chat.jsx";
+import Prompt from "./page-prompt.jsx";
 
-export default function Home() {
-  
+export default async function Home({ searchParams }) {
+  const params = await searchParams;
+
   return (
-    <PageProvider>
+    <PageProvider searchParams={params}>
       <div className={styles.page}>
         <aside>
           <Menu />
@@ -24,8 +26,7 @@ export default function Home() {
             <Chat />
           </section>
           <footer>
-            <textarea placeholder="Tapez votre message ici..."></textarea>
-            <Button style="primary" disabled icon={Navigation}></Button>
+            <Prompt />
           </footer>
         </main>
       </div>
