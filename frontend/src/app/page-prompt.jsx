@@ -14,10 +14,10 @@ import {Navigation} from "@/components/Icons";
 export default function Component() {
   const router = useRouter();
 
-  const { selectedItem, setSelectedItem } = usePageContext();
+  const { selectedItem, messages, setMessages } = usePageContext();
   const { setError } = useAppContext();
 
-  const [ message, setMessage ] = useState("")
+  const [ prompt, setPrompt ] = useState("")
 
     const [postRequest, setPostRequest] = useState({
         url: null,
@@ -49,7 +49,7 @@ export default function Component() {
         else{
             // actualise la liste des messages après l'envoi réussi
             router.refresh();
-            setMessage(""); 
+            setPrompt("");
         }
     }
   }, [post.hasSuccess])
@@ -62,28 +62,25 @@ export default function Component() {
     {
         setPostRequest({
             url: `/chats`,
-            data: { title: "Nouvelle discussion", message }
+            data: { title: "Nouvelle discussion", message: prompt }
         });
     }
     else
     {
         // place le message dans la pile en attendant le retour du serveur...
 
-        const messages = JSON.parse(selectedItem.messages);
+        const newMessages = [...messages];
 
-        messages.push({
+        newMessages.push({
             date: new Date().toISOString(),
-            message
+            message: prompt
         });
 
-        setSelectedItem({
-            ...selectedItem,
-            messages: JSON.stringify(messages)
-        });
+        setMessages(newMessages);
 
         setPostRequest({
             url: `/chats/${selectedItem?.id}/messages`,
-            data: { message }
+            data: { message: prompt }
         });
     }
 
@@ -91,8 +88,8 @@ export default function Component() {
 
   return (
     <form className={styles.footer} onSubmit={handleSubmit}>
-        <textarea name="message" value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Tapez votre message ici..."></textarea>
-        <Button type="submit" style="primary" disabled={!message} icon={Navigation}></Button>
+        <textarea name="message" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Tapez votre message ici..."></textarea>
+        <Button type="submit" style="primary" disabled={!prompt} icon={Navigation}></Button>
     </form>
   );
 }
