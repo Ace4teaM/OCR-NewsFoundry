@@ -42,8 +42,7 @@ class LoginRequest(BaseModel):
 
 class CreateMessage(BaseModel):
     """Données nécessaires à la création d'un message."""
-    chat_id: int
-    new_message: str
+    message: str
 
 class CreateChat(BaseModel):
     """Données nécessaires à la création d'un chat."""
@@ -361,11 +360,12 @@ async def get_chat(
 
 @app.post("/chats/{chat_id}/messages")
 def create_message(
+    chat_id: int,
     data: CreateMessage,
     current_user: Annotated[User, Depends(get_current_user)]
 ):
     with Session(engine) as session:
-        chat = session.get(Chat, data.chat_id)
+        chat = session.get(Chat, chat_id)
         if not chat or chat.user_id != current_user.id:
             raise HTTPException(status_code=404, detail="Chat introuvable")
         messages = json.loads(chat.messages)

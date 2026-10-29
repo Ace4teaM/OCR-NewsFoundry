@@ -29,7 +29,6 @@ export default function Component() {
   useEffect(()=>{
     if(post.hasError == true)
     {
-        console.log("error", post.result.message)
       setError(post.result.message);
     }
   }, [post.hasError])
@@ -47,8 +46,18 @@ export default function Component() {
             router.push(`/?${params.toString()}`);
         }
         else{
-            // actualise la liste des messages après l'envoi réussi
-            router.refresh();
+            // ajoute la réponse à la liste des messages existants
+            
+            const newMessages = [...messages];
+
+            newMessages.push({
+                date: new Date().toISOString(),
+                message: post.result?.data?.response,
+                type: "system"
+            });
+
+            setMessages(newMessages);
+
             setPrompt("");
         }
     }
@@ -73,7 +82,8 @@ export default function Component() {
 
         newMessages.push({
             date: new Date().toISOString(),
-            message: prompt
+            message: prompt,
+            type: "user"
         });
 
         setMessages(newMessages);
