@@ -67,12 +67,15 @@ export function PageProvider({ searchParams, children }) {
 
     // si la sélection change on définit le paramètre chat_id dans l'URL (sans rechargement)
     useEffect(() => {
+        const params = new URLSearchParams(searchParams);
+
         if (!selectedItem) {
+            params.delete("chat_id");
+            router.replace(`/?${params.toString()}`, { scroll: false });
             setMessages([]);
             return;
         }
 
-        const params = new URLSearchParams(searchParams);
         params.set("chat_id", selectedItem?.id);
 
         router.replace(`/?${params.toString()}`, { scroll: false });

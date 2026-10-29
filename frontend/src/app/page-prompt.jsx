@@ -16,7 +16,7 @@ export default function Component() {
 
   const formRef = useRef(null);
 
-  const { selectedItem, messages, setMessages } = usePageContext();
+  const { selectedItem, setSelectedItem, setItems, messages, setMessages } = usePageContext();
   const { setError } = useAppContext();
 
   const [ prompt, setPrompt ] = useState("")
@@ -40,12 +40,10 @@ export default function Component() {
     {
         if(!selectedItem)
         {
-            const params = new URLSearchParams({
-                chat_id: post.result?.data?.id
-            });
-
             // charge la nouvelle discussion
-            router.push(`/?${params.toString()}`);
+            const newItem = post.result?.data;
+            setItems(prev => [...prev, newItem]);
+            setSelectedItem(newItem);
         }
         else{
             // ajoute la réponse à la liste des messages existants
@@ -59,9 +57,9 @@ export default function Component() {
             });
 
             setMessages(newMessages);
-
-            setPrompt("");
         }
+         
+        setPrompt("");
     }
   }, [post.hasSuccess])
 

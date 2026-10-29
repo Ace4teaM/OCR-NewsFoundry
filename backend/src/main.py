@@ -289,14 +289,26 @@ async def chats(data: CreateChat, current_user: Annotated[User, Depends(get_curr
 
 
     with Session(engine) as session:
-        statement = insert(Chat).values(
+        chat = Chat(
             user_id=current_user.id,
             title=data.title,
             messages=json.dumps(messages)
-        ).returning(Chat.id)
-        chat_id = session.exec(statement).scalar_one()
+        )
+
+        session.add(chat)
         session.commit()
-        return ResponseApi(success=True, message="Chat créé avec succès", data={"id": chat_id})
+        session.refresh(chat)
+
+        return ResponseApi(
+            success=True,
+            message="Chat créé avec succès",
+            data={
+                "id": chat.id,
+                "title": chat.title,
+                "messages": chat.messages,
+                "created_at": chat.created_at
+            }
+        )
 
 @app.get("/chats")
 async def get_chats(
