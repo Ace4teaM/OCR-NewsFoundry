@@ -36,28 +36,28 @@ html {
 /* L : 1024 px et plus */
 @media (min-width: 1024px) {
   html {
-    font-size: 22px; /* rem base */
+    font-size: 20px; /* rem base */
   }
 }
 
 /* XL : 1280 px et plus */
 @media (min-width: 1280px) {
   html {
-    font-size: 29px; /* rem base */
+    font-size: 22px; /* rem base */
   }
 }
 
 /* 2XL : 1536 px et plus */
 @media (min-width: 1536px) {
   html {
-    font-size: 34px; /* rem base */
+    font-size: 24px; /* rem base */
   }
 }
 
 /* 3XL : 1920 px et plus */
 @media (min-width: 1920px) {
   html {
-    font-size: 39px; /* rem base */
+    font-size: 26px; /* rem base */
   }
 }
 
