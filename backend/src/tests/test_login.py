@@ -36,6 +36,7 @@ class FakeSession:
     """Simule une session de base de données."""
 
     user = None
+    chat = None
 
     def __init__(self, engine):
         pass
@@ -49,15 +50,25 @@ class FakeSession:
     def exec(self, statement):
         return FakeResult(self.user)
 
+    def get(self, model, entity_id):
+        if model is main.Chat and self.chat and self.chat.id == entity_id:
+            return self.chat
+        if model is main.User and self.user and self.user.id == entity_id:
+            return self.user
+        return None
+
 
 # Simule un client HTTP pour appeler l'API FastAPI
 @pytest.fixture
 def client(monkeypatch):
     """Prépare un client HTTP et une base simulée pour chaque test."""
 
-    # remplace les variables existantes par les objets de tests
+    # remplace la session existantes par une session simulée
     monkeypatch.setattr(main, "Session", FakeSession)
+
+    # Réinitialise pour chaque test.
     FakeSession.user = None
+    FakeSession.chat = None
 
     # retourne un client Http de test
     return TestClient(main.app)
@@ -93,11 +104,11 @@ def test_login_with_valid_credentials(client, user, monkeypatch): # monkeypatch 
         },
     )
 
+    data = response.json()
+
     assert response.status_code == 200
-    assert response.json() == {
-        "success": True,
-        "message": "Connexion réussie",
-    }
+    assert data["success"] is True
+    assert data["message"] == "Connexion réussie"
 
     cookie = response.cookies.get("access_token")
     assert cookie is not None
@@ -157,3 +168,35 @@ def test_login_with_wrong_password(client, user):
     )
     assert "access_token" not in response.cookies
     assert "set-cookie" not in response.headers
+
+    
+def test_user_cannot_access_another_users_chat(client, user):
+    """Un utilisateur ne peut pas consulter le chat d'un autre utilisateur."""
+
+    # L'utilisateur connecté possède l'identifiant 1.
+    FakeSession.user = user
+
+    # Le chat demandé appartient à l'utilisateur 2.
+    FakeSession.chat = SimpleNamespace(
+        id=42,
+        user_id=2,
+        title="Discussion privée",
+        created_at="2026-10-29",
+        messages="[]",
+    )
+
+    # Authentification de l'utilisateur 1.
+    login_response = client.post(
+        "/login",
+        json={
+            "email": user.email,
+            "password": "MotDePasse-Test-123",
+        },
+    )
+
+    assert login_response.status_code == 200
+
+    # Tentative d'accès au chat de l'utilisateur 2.
+    response = client.get("/chats/42")
+
+    assert response.status_code == 401

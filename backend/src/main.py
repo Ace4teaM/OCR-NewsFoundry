@@ -128,7 +128,6 @@ def get_current_user(
             raise jwt.InvalidTokenError("Missing subject")
 
         user_id = int(subject)
-
     except (jwt.InvalidTokenError, ValueError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -369,8 +368,11 @@ async def get_chat(
     """
     with Session(engine) as session:
         chat = session.get(Chat, chat_id)
-        if not chat or chat.user_id != current_user.id:
+        print("chat", chat)
+        if not chat:
             raise HTTPException(status_code=404, detail="Chat introuvable")
+        if chat.user_id != current_user.id:
+            raise HTTPException(status_code=401, detail="Non autorisé")
         return ResponseApi(success=True, message="Chat trouvé", data={
             "id": chat.id,
             "title": chat.title,
@@ -386,8 +388,10 @@ def create_message(
 ):
     with Session(engine) as session:
         chat = session.get(Chat, chat_id)
-        if not chat or chat.user_id != current_user.id:
+        if not chat:
             raise HTTPException(status_code=404, detail="Chat introuvable")
+        if chat.user_id != current_user.id:
+            raise HTTPException(status_code=401, detail="Non autorisé")
         messages = json.loads(chat.messages)
         new_message = data.message.strip()
         messages.append({"date": datetime.now().isoformat(), "message": new_message, "type": "user"})
