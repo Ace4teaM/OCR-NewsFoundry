@@ -20,7 +20,6 @@ export function PageProvider({ searchParams, children }) {
   const router = useRouter();
   
     const chatId = Number(searchParams?.chat_id);
-    const hasRun = useRef(false);
 
     const login = () => {
         router.replace("/login", { scroll: false });
@@ -34,6 +33,8 @@ export function PageProvider({ searchParams, children }) {
                 throw new Error(result.message);
 
             setUser(null);
+
+            window.location.reload();
         } catch (error) {
             setError(error.message);
         }
@@ -42,13 +43,8 @@ export function PageProvider({ searchParams, children }) {
     // liste les chats de l'utilisateur authentifié
     useEffect(() => {
 
-        // Code exécuté une seule fois
-        if (user === null){
-            window.location.replace("/login");
-            return;
-        }
-
-        if (user === undefined){
+        // l'utilisateur doit etre loggé
+        if (!user){
             return;
         }
 

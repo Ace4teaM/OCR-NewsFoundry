@@ -24,7 +24,6 @@ export default function Page() {
   useEffect(()=>{
     if(login.hasError == true)
     {
-      console.info("hasError")
       setError(login.result.message);
     }
   }, [login.hasError])
@@ -32,7 +31,6 @@ export default function Page() {
   useEffect(()=>{
     if(login.hasSuccess == true)
     {
-      console.info("hasSuccess")
       setUser(login.result.data);
       router.push("/");
     }

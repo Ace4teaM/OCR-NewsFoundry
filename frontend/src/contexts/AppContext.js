@@ -14,6 +14,7 @@ export function AppProvider({ children }) {
   const [ error, setError ] = useState(null)
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const firstAuth = useRef(null);
 
   function openDialog(Component, props = {}, success = () => {}, resolve = (result) => {}) {
       setDialog({
@@ -41,21 +42,21 @@ export function AppProvider({ children }) {
   },[dialog])
 
   useEffect(() => {
+      if (firstAuth.current !== null)
+          return;
+      firstAuth.current = true;
+      
       async function checkAuth() {
           try {
               const result = await fetchApi("me");
 
-              if(result.success == false)
-              {
-                  console.info("utilisateur non authentifié");
+              if (result.success) {
+                  setUser(result.data);
+              } else {
                   setUser(null);
-                  return;
               }
-
-              console.info("utilisateur authentifié");
-              setUser(result.data);
           } catch (error) {
-              console.error("erreur vérif authentifié", error);
+              console.error("Erreur vérification authentification", error);
               setUser(undefined);
           } finally {
               setLoading(false);
