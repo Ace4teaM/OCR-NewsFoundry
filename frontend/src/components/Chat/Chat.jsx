@@ -53,12 +53,17 @@ export default function Chat({data, children}) {
     items = [
         {
             "date":"10:31",
+            "message": "Contexte de la discution",
+            "type": "system"
+        },
+        {
+            "date":"10:31",
             "message": "Peux-tu me donner les dernières actualités politiques ?",
             "type": "user"
         },
         {
             "date":"10:31",
-            "type": "system",
+            "type": "assistant",
             "message": `Voici un résumé des dernières nouvelles politiques :
 
 • Le gouvernement a annoncé de nouvelles mesures économiques

@@ -6,6 +6,9 @@ import os
 
 api_key = os.getenv("MISTRAL_API_KEY")
 
+if not api_key:
+    raise RuntimeError("La variable MISTRAL_API_KEY est manquante")
+
 model = MistralModel(
     "ministral-3b-latest",
     provider=MistralProvider(

@@ -61,11 +61,19 @@
     margin-right: 60px;
 }
 
+.message[data-type="assistant"]{
+    margin-right: auto;
+    background-color: var(--slate-300);
+    color: var(--slate-dark);
+    margin-left: 60px;
+}
+
 .message[data-type="system"]{
     margin-right: auto;
     background-color: var(--slate-300);
     color: var(--slate-dark);
     margin-left: 60px;
+    display: none;
 }
 
 .icon{
@@ -89,7 +97,7 @@
     right: -40px;
 }
 
-.message[data-type="system"] .icon{
+.message[data-type="assistant"] .icon{
     background-color: var(--slate-300);
     color: var(--slate-dark);
     position: absolute;

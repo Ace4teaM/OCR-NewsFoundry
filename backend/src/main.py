@@ -1,8 +1,10 @@
+from email import message
+
 from fastapi import FastAPI, Depends, HTTPException
 import os
 from dataclasses import dataclass
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Annotated
 from database import init_db, engine
 from fastapi import FastAPI, HTTPException, status, Response, Cookie, Depends
@@ -16,6 +18,7 @@ from models import Chat, User
 import bcrypt
 import jwt
 from ai import agent
+from worldnews import wn_receive_day_news, wn_resume_day_news
 
 app = FastAPI()
 
@@ -146,14 +149,16 @@ def get_current_user(
     return user
 
 
-def send_prompt(message: str) -> str:
-    result = agent.run_sync(
+async def send_prompt(context: str, prompt: str) -> str:
+
+    message = f"Contexte : {context}\n\nQuestion : {prompt}"
+
+    result = await agent.run(
         message,
         retries=3
     )
 
     return result.output
-
 
 @app.get("/")
 async def hello():
@@ -279,19 +284,37 @@ async def chats(data: CreateChat, current_user: Annotated[User, Depends(get_curr
 
     messages = []
     if data.message:
+        # distille la demande de l'utilisateur pour définir le contexte
+        # appel LLM pour obtenir des informations structurées
+
+        # ajoute du contexte à la discution
+        # récupère les actualités du jour depuis l'API World News
+        day_news = wn_receive_day_news()
+        news_summary = wn_resume_day_news(day_news)
+        messages.append({
+            "date": datetime.now().isoformat(),
+            "message": news_summary,
+            "type": "system"
+        })
+
+        # archive le message de l'utilisateur
         messages.append({
             "date": datetime.now().isoformat(),
             "message": data.message,
             "type": "user"
         })
+
+        # interoge le LLM avec le message de l'utilisateur
         try:
-            response = send_prompt(data.message)
+            response = await send_prompt(news_summary, data.message)
+            print(f"RESPONSE", response)
             messages.append({
                 "date": datetime.now().isoformat(),
                 "message": response,
-                "type": "system"
+                "type": "assistant"
             })
         except Exception as e:
+            print(f"Erreur lors de l'envoi du prompt au LLM: {e}")
             pass # si le LLM n'est pas dispo on conserve uniquement le message
 
 
@@ -368,7 +391,6 @@ async def get_chat(
     """
     with Session(engine) as session:
         chat = session.get(Chat, chat_id)
-        print("chat", chat)
         if not chat:
             raise HTTPException(status_code=404, detail="Chat introuvable")
         if chat.user_id != current_user.id:
@@ -381,7 +403,7 @@ async def get_chat(
         })
 
 @app.post("/chats/{chat_id}/messages")
-def create_message(
+async def create_message(
     chat_id: int,
     data: CreateMessage,
     current_user: Annotated[User, Depends(get_current_user)]
@@ -396,8 +418,8 @@ def create_message(
         new_message = data.message.strip()
         messages.append({"date": datetime.now().isoformat(), "message": new_message, "type": "user"})
         try:
-            response = send_prompt(new_message)
-            messages.append({"date": datetime.now().isoformat(), "message": response, "type": "system"})
+            response = await send_prompt(new_message)
+            messages.append({"date": datetime.now().isoformat(), "message": response, "type": "assistant"})
         except Exception as e:
             response = f"Erreur lors de l'envoi du prompt: {str(e)}"
         chat.messages = json.dumps(messages)
