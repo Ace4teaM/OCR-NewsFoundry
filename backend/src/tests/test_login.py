@@ -7,6 +7,8 @@ from types import SimpleNamespace
 # Définir les variables avant l'import de main.
 os.environ.setdefault("ALLOW_ORIGINS", "http://localhost:3000")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key")
+os.environ.setdefault("MISTRAL_API_KEY", "unused-key")
+os.environ.setdefault("DATABASE_URL", "postgresql://user:password@localhost:5432/newsfoundry")
 os.environ["COOKIE_SECURE"] = "false"
 
 import bcrypt
