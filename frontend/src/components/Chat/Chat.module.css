@@ -104,3 +104,64 @@
 .date{
     font-size: 0.5rem;
 }
+
+
+.text
+{
+  margin-bottom: 16px;
+  margin-left: 16px;
+  margin-right: 46px;
+}
+
+.text h1,
+.text h2,
+.text h3 {
+  font-size: 1em;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.text p {
+  margin: 0.5rem 0;
+}
+
+.text ul,
+.text ol {
+  padding-left: 1.5rem;
+}
+
+.text code {
+  padding: 2px 4px;
+  border-radius: 3px;
+  background: #f2f2f2;
+}
+
+.text pre {
+  padding: 12px;
+  overflow-x: auto;
+  border-radius: 6px;
+  background: #f2f2f2;
+}
+
+.text table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    background-color: white;
+}
+
+.text th,
+.text td {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    text-align: left;
+}
+
+.text th {
+    font-weight: 600;
+    background: #f5f5f5;
+}
+
+.text tr:nth-child(even) {
+    background: #fafafa;
+}

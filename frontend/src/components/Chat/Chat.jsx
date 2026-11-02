@@ -1,6 +1,8 @@
 import { useRef, useEffect } from "react";
 import styles from "./Chat.module.css";
 import { Logo, User } from "@/components/Icons";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 
 /**
@@ -104,7 +106,9 @@ dans le domaine de la santé et de l'éducation.`
         <div className={styles.content} ref={containerRef}>
             {items.map((item, index) => (
                 <div key={index} className={styles.message} data-type={item.type}>
-                    <div className={styles.text}>{item.message}</div>
+                    <div className={styles.text}>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.message}</ReactMarkdown>
+                    </div>
                     <div className={styles.date}>{formatDateTime(item.date)}</div>
                     <div className={styles.icon}>{item.type === "user" ? <User /> : <Logo />}</div>
                 </div>
