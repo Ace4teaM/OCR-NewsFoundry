@@ -4,6 +4,10 @@ from sqlmodel import SQLModel, Session, create_engine, select
 import bcrypt
 
 DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
+    raise RuntimeError("La variable DATABASE_URL est manquante")
+
 engine = create_engine(DATABASE_URL, echo=True)
 
 

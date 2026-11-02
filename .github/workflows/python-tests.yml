@@ -12,6 +12,11 @@ jobs:
       run:
         working-directory: backend
 
+    env:
+      # URL fictive : les tests utilisent FakeSession et ne nécessitent pas de connexion PostgreSQL.
+      # Cette variable est uniquement nécessaire à l'initialisation du moteur SQLAlchemy.
+      DATABASE_URL: postgresql://test:test@localhost:5432/test
+
     steps:
       - name: Récupérer le code
         uses: actions/checkout@v4
