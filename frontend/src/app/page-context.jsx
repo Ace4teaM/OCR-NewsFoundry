@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { fetchApi, postApi } from "@/utils/http";
 import { useRouter } from "next/navigation";
 import { useAppContext } from "@/contexts/AppContext";
@@ -11,7 +12,8 @@ const PageContext = createContext(null);
  * Fournit les états partagés propres à la page.
  * @param {{ children: import("react").ReactNode }} props
  */
-export function PageProvider({ searchParams, children }) {
+export function PageProvider({ children }) {
+  const searchParams = useSearchParams();
   const [ selectedItem, setSelectedItem ] = useState(null)
   const [ items, setItems ] = useState([])
   const [ messages, setMessages ] = useState([])
@@ -19,7 +21,7 @@ export function PageProvider({ searchParams, children }) {
 
   const router = useRouter();
   
-    const chatId = Number(searchParams?.chat_id);
+    const chatId = Number(searchParams.get("chat_id"));
 
     const login = () => {
         router.replace("/login", { scroll: false });
