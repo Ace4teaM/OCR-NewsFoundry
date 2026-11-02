@@ -15,6 +15,7 @@ import uvicorn
 from models import Chat, User
 import bcrypt
 import jwt
+from ai import agent
 
 app = FastAPI()
 
@@ -147,7 +148,12 @@ def get_current_user(
 
 
 def send_prompt(message: str) -> str:
-    return "Réponse LLM"
+    result = agent.run_sync(
+        message,
+        retries=3
+    )
+
+    return result.output
 
 
 @app.get("/")
@@ -274,7 +280,6 @@ async def chats(data: CreateChat, current_user: Annotated[User, Depends(get_curr
 
     messages = []
     if data.message:
-        response = send_prompt(data.message)
         messages.append({
             "date": datetime.now().isoformat(),
             "message": data.message,
@@ -385,9 +390,12 @@ def create_message(
             raise HTTPException(status_code=404, detail="Chat introuvable")
         messages = json.loads(chat.messages)
         new_message = data.message.strip()
-        response = "réponse du LLM"
         messages.append({"date": datetime.now().isoformat(), "message": new_message, "type": "user"})
-        messages.append({"date": datetime.now().isoformat(), "message": response, "type": "system"})
+        try:
+            response = send_prompt(new_message)
+            messages.append({"date": datetime.now().isoformat(), "message": response, "type": "system"})
+        except Exception as e:
+            response = f"Erreur lors de l'envoi du prompt: {str(e)}"
         chat.messages = json.dumps(messages)
         session.add(chat)
         session.commit()
