@@ -56,7 +56,7 @@ export default function Page() {
                 <input id={email_id} type="mail" name="email" placeholder="votre.email@exemple.com" />
                 <label htmlFor={password_id}>Mot de passe</label>
                 <input id={password_id} name="password" type="password"></input>
-                <Button type="submit" style="secondary">Se connecter</Button>
+                <Button type="submit" style="secondary" disabled={login.isLoading}>Se connecter</Button>
             </form>
         </div>
       </main>

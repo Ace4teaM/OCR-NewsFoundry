@@ -83,7 +83,7 @@ export default function Component() {
     }
     else
     {
-        // place le message dans la pile en attendant le retour du serveur...
+        // place le message dans la pile en attendant la réponse du serveur...
 
         const newMessages = [...messages];
 

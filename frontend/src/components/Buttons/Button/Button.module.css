@@ -34,6 +34,7 @@
 .container[data-style="primary"]:disabled
 {
     background-color: var(--slate-500);
+    cursor: not-allowed;
 }
 
 
@@ -54,5 +55,6 @@
 {
     background-color: var(--slate-400);
     color: var(--slate-700);
+    cursor: not-allowed;
 }
 
