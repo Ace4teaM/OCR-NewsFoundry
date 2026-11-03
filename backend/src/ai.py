@@ -26,3 +26,18 @@ agent = Agent(
         Tes réponses sont précises et pédagogiques.
     """
 )
+
+async def prompt_agent(message: str) -> str:
+    """
+    Analyse une demande utilisateur et retourne son intention structurée.
+
+    Args:
+        message: Demande formulée par l'utilisateur.
+
+    Returns:
+        Qualification structurée de la demande.
+    """
+
+    result = await agent.run(message)
+
+    return result.output

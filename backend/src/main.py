@@ -1,4 +1,5 @@
 from email import message
+from textwrap import dedent
 
 from fastapi import FastAPI, Depends, HTTPException
 import os
@@ -17,8 +18,11 @@ import uvicorn
 from models import Chat, User
 import bcrypt
 import jwt
-from ai import agent
-from worldnews import wn_receive_day_news, wn_resume_day_news
+from ai import prompt_agent
+from ai_synthesis_agent import synthesize_news
+from ai_classify_agent import Intent, classify_user_request, period_to_dates
+from ai_conversation_agent import manage_conversation, ConversationAction
+from worldnews import wn_receive_news, wn_resume_news
 
 app = FastAPI()
 
@@ -149,17 +153,6 @@ def get_current_user(
     return user
 
 
-async def send_prompt(context: str, prompt: str) -> str:
-
-    message = f"Contexte : {context}\n\nQuestion : {prompt}"
-
-    result = await agent.run(
-        message,
-        retries=3
-    )
-
-    return result.output
-
 @app.get("/")
 async def hello():
     return ResponseApi(success = True, message = "👋")
@@ -282,41 +275,116 @@ async def chats(data: CreateChat, current_user: Annotated[User, Depends(get_curr
         HTTPException: Si l'utilisateur n'est pas authentifié.
     """
 
+    message = data.message.strip() if data.message else None
+
+    print("START************************************************")
+    print("Message initial:", message)
+
     messages = []
-    if data.message:
-        # distille la demande de l'utilisateur pour définir le contexte
-        # appel LLM pour obtenir des informations structurées
-
-        # ajoute du contexte à la discution
-        # récupère les actualités du jour depuis l'API World News
-        day_news = wn_receive_day_news()
-        news_summary = wn_resume_day_news(day_news)
-        messages.append({
-            "date": datetime.now().isoformat(),
-            "message": news_summary,
-            "type": "system"
-        })
-
+    if message:
         # archive le message de l'utilisateur
         messages.append({
             "date": datetime.now().isoformat(),
-            "message": data.message,
+            "message": message,
             "type": "user"
         })
 
-        # interoge le LLM avec le message de l'utilisateur
+        # agent de qualification
+        # appel le LLM pour obtenir des informations structurées
         try:
-            response = await send_prompt(news_summary, data.message)
-            print(f"RESPONSE", response)
-            messages.append({
-                "date": datetime.now().isoformat(),
-                "message": response,
-                "type": "assistant"
-            })
+            context = await classify_user_request(message)
+            print("Contexte obtenu:", context)
         except Exception as e:
-            print(f"Erreur lors de l'envoi du prompt au LLM: {e}")
-            pass # si le LLM n'est pas dispo on conserve uniquement le message
+            print(f"Erreur lors de la classification de la demande utilisateur: {e}")
+            return ResponseApi(
+                success=False,
+                message="Impossible de déterminer le contexte de la demande",
+                data={
+                    "message": message,
+                    "erreur": str(e)
+                }
+            )
 
+        match context.intent:
+            case Intent.NEWS_SEARCH | Intent.NEWS_QUESTION:
+                # ajoute du contexte à la discution
+                # récupère les actualités du jour depuis l'API World News
+                start, end = period_to_dates(
+                    context.period,
+                    context.period_start,
+                    context.period_end,
+                )
+
+                # si les dates ne sont pas spécifiées, on demande à l'utilisateur de les spécifier
+                if start is None or end is None:
+                    response = dedent("""\
+                            Afin de me permetre d'affiner ma recherche,
+                            pouvez vous préciser la période désirée ?
+
+                            - aujourd'hui
+                            - hier
+                            - les sept derniers jours
+                            - les trente derniers jours
+                            - période explicitement définie par des dates
+                        """)
+                else:
+                    print(f"Du {start} au {end}")
+
+                    day_news = wn_receive_news(start, end, context.subject, context.category)
+                    news_summary = wn_resume_news(day_news)
+                    messages.append({
+                        "date": datetime.now().isoformat(),
+                        "message": news_summary,
+                        "type": "system"
+                    })
+
+                    # interoge le LLM avec le message de l'utilisateur
+                    try:
+                        response = await synthesize_news(news_summary, message)
+                        print(f"RESPONSE", response)
+                        messages.append({
+                            "date": datetime.now().isoformat(),
+                            "message": response,
+                            "type": "assistant"
+                        })
+                    except Exception as e:
+                        print(f"Erreur lors de l'envoi du prompt au LLM: {e}")
+                        pass # si le LLM n'est pas dispo on conserve uniquement le message utilisateur
+
+            case Intent.GENERAL_QUESTION:
+                # interoge le LLM avec le message de l'utilisateur
+                try:
+                    response = await prompt_agent(message)
+                    print(f"RESPONSE", response)
+                    messages.append({
+                        "date": datetime.now().isoformat(),
+                        "message": response,
+                        "type": "assistant"
+                    })
+                except Exception as e:
+                    print(f"Erreur lors de l'envoi du prompt au LLM: {e}")
+                    pass # si le LLM n'est pas dispo on conserve uniquement le message utilisateur
+
+            case Intent.OUT_OF_SCOPE:
+                messages.append({
+                    "date": datetime.now().isoformat(),
+                    "message": "Je ne suis pas sûr de pouvoir répondre à cette question. Veuillez poser une question sur l'actualité.",
+                    "type": "assistant"
+                })
+
+            case _:
+                messages.append({
+                    "date": datetime.now().isoformat(),
+                    "message": "Je ne parviens pas à déterminer le sens de votre question. Pouvez vous reformuler votre question ?",
+                    "type": "assistant"
+                })
+
+    else:
+        messages.append({
+            "date": datetime.now().isoformat(),
+            "message": "Comment puis je vous aider ? Posez moi une question sur l'actualité.",
+            "type": "assistant"
+        })
 
     with Session(engine) as session:
         chat = Chat(
@@ -377,7 +445,7 @@ async def get_chat(
     current_user: Annotated[User, Depends(get_current_user)],
 ):
     """
-    retourne l’historique de la discussion pour l’afficher à l’utilisateur
+    retourne l'historique de la discussion pour l'afficher à l'utilisateur
 
     L'utilisateur est identifié et validé par la dépendance
     get_current_user avant l'exécution de cette fonction.
@@ -415,18 +483,56 @@ async def create_message(
         if chat.user_id != current_user.id:
             raise HTTPException(status_code=401, detail="Non autorisé")
         messages = json.loads(chat.messages)
-        new_message = data.message.strip()
-        messages.append({"date": datetime.now().isoformat(), "message": new_message, "type": "user"})
+        message = data.message.strip()
+
+        # archive le message de l'utilisateur
+        messages.append({
+            "date": datetime.now().isoformat(),
+            "message": message,
+            "type": "user"
+        })
+
+
+        # détermine la demande de l'utilisateur à partir du message et du contexte de la conversation
         try:
-            response = await send_prompt(new_message)
-            messages.append({"date": datetime.now().isoformat(), "message": response, "type": "assistant"})
+            decision = await manage_conversation(
+                message=message,
+                history=messages
+            )
+            
+            print(decision.model_dump_json(indent=2))
+
+            match decision.action:
+                case ConversationAction.RESPOND | ConversationAction.CLARIFY:
+                    print(f"RESPONSE", decision.response)
+                    response = decision.response
+                    messages.append({
+                        "date": datetime.now().isoformat(),
+                        "message": decision.response,
+                        "type": "assistant"
+                    })
+                case ConversationAction.RESEARCH:
+                    # Lancer la recherche d'articles
+                    print(f"RESEARCH action triggered")
+                case ConversationAction.RESYNTHESIZE:
+                    # Relancer l'agent de synthèse
+                    print(f"RESYNTHESIZE action triggered")
+                case ConversationAction.END:
+                    print(f"END action triggered")
+                case _:
+                    print(f"Unknown action triggered")
+
         except Exception as e:
-            response = f"Erreur lors de l'envoi du prompt: {str(e)}"
+            print(f"Erreur lors de l'envoi du prompt au LLM: {e}")
+            pass # si le LLM n'est pas dispo on conserve uniquement le message utilisateur
+
         chat.messages = json.dumps(messages)
         session.add(chat)
         session.commit()
+
+
     return ResponseApi(success=True, message="Message ajouté avec succès", data={
-        "message": new_message,
+        "message": message,
         "response": response
     })
 
