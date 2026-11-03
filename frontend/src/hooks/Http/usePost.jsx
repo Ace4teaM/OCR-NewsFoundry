@@ -34,7 +34,7 @@ export default function usePost(url, post, domain = process.env.NEXT_PUBLIC_API_
 
             setResult(await handleResponse(response))
         } catch (err) {
-            setResult(new Result(false, null, err?.message))
+            setResult(new Result(false, err, err?.message))
         } finally {
             setLoading(false)
         }

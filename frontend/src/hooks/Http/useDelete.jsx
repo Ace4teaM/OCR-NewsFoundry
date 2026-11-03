@@ -31,7 +31,7 @@ export default function Delete(url, domain = process.env.NEXT_PUBLIC_API_URL, ha
 
             setResult(await handleResponse(response))
         } catch (err) {
-            setResult(new Result(false, null, err?.message))
+            setResult(new Result(false, err, err?.message))
         } finally {
             setLoading(false)
         }

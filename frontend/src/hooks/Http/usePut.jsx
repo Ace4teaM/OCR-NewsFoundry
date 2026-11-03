@@ -34,7 +34,7 @@ export default function Put(url, put, domain = process.env.NEXT_PUBLIC_API_URL, 
 
             setResult(await handleResponse(response))
         } catch (err) {
-            setResult(new Result(false, null, err?.message))
+            setResult(new Result(false, err, err?.message))
         } finally {
             setLoading(false)
         }
