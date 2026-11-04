@@ -1,7 +1,6 @@
 from email import message
 from textwrap import dedent
-
-from fastapi import FastAPI, Depends, HTTPException
+from requests.exceptions import HTTPError
 import os
 from dataclasses import dataclass
 import json
@@ -19,9 +18,10 @@ from models import Chat, User
 import bcrypt
 import jwt
 from ai import prompt_agent
-from ai_synthesis_agent import synthesize_news
+from ai_synthesis_agent import synthesize_news, synthesize_articles
 from ai_classify_agent import Intent, classify_user_request, period_to_dates
 from ai_conversation_agent import manage_conversation, ConversationAction
+from ai_research_agent import prepare_research, ResearchPlan
 from worldnews import wn_receive_news, wn_resume_news
 
 app = FastAPI()
@@ -277,8 +277,9 @@ async def chats(data: CreateChat, current_user: Annotated[User, Depends(get_curr
 
     message = data.message.strip() if data.message else None
 
-    print("START************************************************")
+    print("************************************************")
     print("Message initial:", message)
+    print("************************************************")
 
     messages = []
     if message:
@@ -290,7 +291,7 @@ async def chats(data: CreateChat, current_user: Annotated[User, Depends(get_curr
         })
 
         # agent de qualification
-        # appel le LLM pour obtenir des informations structurées
+        # appel LLM pour obtenir une demande structurée
         try:
             context = await classify_user_request(message)
             print("Contexte obtenu:", context)
@@ -327,6 +328,11 @@ async def chats(data: CreateChat, current_user: Annotated[User, Depends(get_curr
                             - les trente derniers jours
                             - période explicitement définie par des dates
                         """)
+                    messages.append({
+                        "date": datetime.now().isoformat(),
+                        "message": response,
+                        "type": "assistant"
+                    })
                 else:
                     print(f"Du {start} au {end}")
 
@@ -338,7 +344,7 @@ async def chats(data: CreateChat, current_user: Annotated[User, Depends(get_curr
                         "type": "system"
                     })
 
-                    # interoge le LLM avec le message de l'utilisateur
+                    # synthétise les résultats
                     try:
                         response = await synthesize_news(news_summary, message)
                         print(f"RESPONSE", response)
@@ -366,23 +372,26 @@ async def chats(data: CreateChat, current_user: Annotated[User, Depends(get_curr
                     pass # si le LLM n'est pas dispo on conserve uniquement le message utilisateur
 
             case Intent.OUT_OF_SCOPE:
+                response = "Je ne suis pas sûr de pouvoir répondre à cette question. Veuillez poser une question sur l'actualité."
                 messages.append({
                     "date": datetime.now().isoformat(),
-                    "message": "Je ne suis pas sûr de pouvoir répondre à cette question. Veuillez poser une question sur l'actualité.",
+                    "message": response,
                     "type": "assistant"
                 })
 
             case _:
+                response = "Je ne parviens pas à déterminer le sens de votre question. Pouvez vous reformuler votre question ?"
                 messages.append({
                     "date": datetime.now().isoformat(),
-                    "message": "Je ne parviens pas à déterminer le sens de votre question. Pouvez vous reformuler votre question ?",
+                    "message": response,
                     "type": "assistant"
                 })
 
     else:
+        response = "Comment puis je vous aider ? Posez moi une question sur l'actualité."
         messages.append({
             "date": datetime.now().isoformat(),
-            "message": "Comment puis je vous aider ? Posez moi une question sur l'actualité.",
+            "message": response,
             "type": "assistant"
         })
 
@@ -503,8 +512,10 @@ async def create_message(
             print(decision.model_dump_json(indent=2))
 
             match decision.action:
-                case ConversationAction.RESPOND | ConversationAction.CLARIFY:
+                case ConversationAction.RESPOND if decision.response and decision.response.strip():
+                    print(f"*******************************************")
                     print(f"RESPONSE", decision.response)
+                    print(f"*******************************************")
                     response = decision.response
                     messages.append({
                         "date": datetime.now().isoformat(),
@@ -513,23 +524,140 @@ async def create_message(
                     })
                 case ConversationAction.RESEARCH:
                     # Lancer la recherche d'articles
+                    print(f"*******************************************")
                     print(f"RESEARCH action triggered")
+                    print(f"*******************************************")
+                    response = ""
+                    # agent de qualification
+                    # appel LLM pour obtenir une demande structurée
+                    try:
+                        context = await prepare_research(message)
+                        print("Contexte obtenu:", context)
+                    except Exception as e:
+                        raise RuntimeError(f"Erreur lors de la classification de la demande utilisateur") from e
+
+                    # si les dates ne sont pas spécifiées, on demande à l'utilisateur de les spécifier
+                    if not context.start_date or not context.end_date:
+                        response = dedent("""\
+                                Afin de me permetre d'affiner ma recherche,
+                                pouvez vous préciser la période désirée ?
+
+                                - aujourd'hui
+                                - hier
+                                - les sept derniers jours
+                                - les trente derniers jours
+                                - période explicitement définie par des dates
+                            """)
+                        messages.append({
+                            "date": datetime.now().isoformat(),
+                            "message": response,
+                            "type": "assistant"
+                        })
+                    else:
+                        print(f"Du {context.start_date} au {context.end_date}")
+
+                        try:
+                            day_news = wn_receive_news(context.start_date, context.end_date, context.subject)#, context.category)
+                            news_summary = wn_resume_news(day_news)
+                            messages.append({
+                                "date": datetime.now().isoformat(),
+                                "message": news_summary,
+                                "type": "system"
+                            })
+                        except HTTPError as e:
+                             try:
+                                error_message = e.response.json().get("message", str(e))
+                                raise RuntimeError(f"Erreur lors de la récupération des actualités:\n\n`{error_message}`") from e
+                             except ValueError:
+                                raise RuntimeError(f"Erreur lors de la récupération des actualités") from e
+                        except Exception as e:
+                            raise RuntimeError(f"Erreur lors de la récupération des actualités") from e
+
+                        # synthétise les résultats
+                        try:
+                            response = await synthesize_news(news_summary, message)
+                            print(f"RESPONSE", response)
+                            messages.append({
+                                "date": datetime.now().isoformat(),
+                                "message": response,
+                                "type": "assistant"
+                            })
+                        except Exception as e:
+                            raise RuntimeError(f"Erreur lors de la synthétisation des résultats") from e
+
                 case ConversationAction.RESYNTHESIZE:
                     # Relancer l'agent de synthèse
+                    print(f"*******************************************")
                     print(f"RESYNTHESIZE action triggered")
+                    print(f"*******************************************")
+                    # synthétise les résultats
+                    try:
+                        articles = [
+                            item for item in messages
+                            if item["type"] == "system" and item["message"]
+                        ]
+                        
+                        response = await synthesize_articles(articles, message)
+                        print(f"RESPONSE", response)
+                        messages.append({
+                            "date": datetime.now().isoformat(),
+                            "message": response,
+                            "type": "assistant"
+                        })
+                    except Exception as e:
+                        raise RuntimeError(f"Erreur lors de la synthétisation des résultats") from e
+                    
+                case ConversationAction.CLARIFY:
+                    # La demande manque d'informations indispensables.
+                    print(f"*******************************************")
+                    print(f"CLARIFY action triggered")
+                    print(f"*******************************************")
+                    response = decision.complement if decision.complement and decision.complement.strip() else "Pouvez vous clarifier votre demande ?"
+                    messages.append({
+                        "date": datetime.now().isoformat(),
+                        "message": response,
+                        "type": "assistant"
+                    })
+
                 case ConversationAction.END:
+                    print(f"*******************************************")
                     print(f"END action triggered")
+                    print(f"*******************************************")
+                    response = ""
+
                 case _:
+                    print(f"*******************************************")
                     print(f"Unknown action triggered")
+                    print(f"*******************************************")
+                    response = "Je ne parviens pas à déterminer le sens de votre question. Pouvez vous reformuler votre question ?"
+                    messages.append({
+                        "date": datetime.now().isoformat(),
+                        "message": response,
+                        "type": "assistant"
+                    })
 
         except Exception as e:
-            print(f"Erreur lors de l'envoi du prompt au LLM: {e}")
-            pass # si le LLM n'est pas dispo on conserve uniquement le message utilisateur
+            messages.append({
+                "date": datetime.now().isoformat(),
+                "message": str(e),
+                "type": "error"
+            })
 
-        chat.messages = json.dumps(messages)
-        session.add(chat)
-        session.commit()
+            return ResponseApi(success=False, message="Erreur de traitement", data={
+                "message": message,
+                "response": str(e)
+            })
 
+        finally:
+            try:
+                chat.messages = json.dumps(messages)
+                session.add(chat)
+                session.commit()
+            except Exception as e:
+                return ResponseApi(success=False, message="Erreur lors de l'enregistrement des données", data={
+                    "message": message,
+                    "error": str(e)
+                })
 
     return ResponseApi(success=True, message="Message ajouté avec succès", data={
         "message": message,

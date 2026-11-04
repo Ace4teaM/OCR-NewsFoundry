@@ -44,13 +44,20 @@ def wn_receive_news(start: datetime, end: datetime, subject:str = None, category
     #if category:
     #    params["categories"] = category
 
+    print(params)
+
     response = requests.get(
         "https://api.worldnewsapi.com/search-news",
         params=params,
         timeout=timeout,
     )
 
-    response.raise_for_status() 
+    if not response.ok:
+        print("Code HTTP :", response.status_code)
+        print("Réponse API :", response.text)
+
+        response.raise_for_status()
+
     return response.json()
 
 

@@ -29,6 +29,7 @@
     justify-content: flex-start;
     gap: 1rem;
     background-color: #ffffff;
+    flex: 0 0 auto;
 }
 
 .main header {

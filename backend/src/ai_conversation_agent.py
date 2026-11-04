@@ -3,6 +3,12 @@ from enum import Enum
 from ai import model
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
+from pydantic_ai.messages import (
+    ModelRequest,
+    ModelResponse,
+    UserPromptPart,
+    TextPart,
+)
 
 
 class FeedbackType(str, Enum):
@@ -39,6 +45,11 @@ class ConversationDecision(BaseModel):
     response: str | None = Field(
         default=None,
         description="Réponse directe à l'utilisateur si nécessaire."
+    )
+
+    complement: str | None = Field(
+        default=None,
+        description="Demande complémentaire ou clarification nécessaire à transmettre à l'utilisateur."
     )
 
     instructions: str | None = Field(
@@ -107,10 +118,36 @@ RÈGLES :
 """
 )
 
+def build_history(messages):
+
+    history = []
+
+    for item in messages:
+
+        content = item.get("message")
+
+        if not isinstance(content, str) or not content.strip():
+            continue
+
+        if item["type"] == "user":
+            history.append(
+                ModelRequest(
+                    parts=[UserPromptPart(content=content)]
+                )
+            )
+
+        elif item["type"] == "assistant":
+            history.append(
+                ModelResponse(
+                    parts=[TextPart(content=content)]
+                )
+            )
+
+    return history
 
 async def manage_conversation(
     message: str,
-    history: str,
+    history: list[dict],
 ) -> ConversationDecision:
     """
     Analyse un message en tenant compte du contexte conversationnel.
@@ -127,10 +164,6 @@ async def manage_conversation(
     """
 
     prompt = f"""
-CONTEXTE DE LA CONVERSATION :
-
-{history}
-
 NOUVEAU MESSAGE UTILISATEUR :
 
 {message}
@@ -139,7 +172,10 @@ Analyse ce message et détermine la prochaine action.
 """
 
     try:
-        result = await conversation_agent.run(prompt)
+        result = await conversation_agent.run(
+            prompt,
+            message_history=build_history(history)
+        )
         return result.output
 
     except Exception as e:

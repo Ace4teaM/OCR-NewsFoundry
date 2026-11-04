@@ -31,7 +31,23 @@ export default function Component() {
   useEffect(()=>{
     if(post.hasError == true)
     {
-      setError(post.result.message);
+        console.log("RESULT",post.result?.data)
+        if(post.result?.data?.response)
+        {
+            // ajoute la réponse à la liste des messages existants
+            
+            const newMessages = [...messages];
+
+            newMessages.push({
+                date: new Date().toISOString(),
+                message: post.result?.data?.response,
+                type: "error"
+            });
+
+            setMessages(newMessages);
+        }
+
+        setError(post.result.message);
     }
   }, [post.hasError])
 
@@ -53,7 +69,7 @@ export default function Component() {
             newMessages.push({
                 date: new Date().toISOString(),
                 message: post.result?.data?.response,
-                type: "system"
+                type: "assistant"
             });
 
             setMessages(newMessages);

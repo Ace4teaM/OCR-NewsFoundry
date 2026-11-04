@@ -52,6 +52,7 @@
     margin: 10px 0;
     border-radius: 8px;
     overflow: visible;
+    max-width: 80%;
 }
 
 .message[data-type="user"]{
@@ -61,11 +62,19 @@
     margin-right: 60px;
 }
 
+.message[data-type="system"] .text code {
+  background: color-mix(in srgb, var(--slate-dark) 12%, white) !important;
+}
+
 .message[data-type="assistant"]{
     margin-right: auto;
     background-color: var(--slate-300);
     color: var(--slate-dark);
     margin-left: 60px;
+}
+
+.message[data-type="assistant"] .text code {
+  background: color-mix(in srgb, var(--slate-300) 12%, white) !important;
 }
 
 .message[data-type="system"]{
@@ -74,6 +83,22 @@
     color: var(--slate-dark);
     margin-left: 60px;
     display: none;
+}
+
+.message[data-type="system"] .text code {
+  background: color-mix(in srgb, var(--slate-300) 12%, white) !important;
+}
+
+.message[data-type="error"]{
+    --error-color: #ffcccc;
+    margin-right: auto;
+    background-color: var(--error-color);
+    color: var(--slate-dark);
+    margin-left: 60px;
+}
+
+.message[data-type="error"] .text code {
+  background: color-mix(in srgb, var(--error-color) 12%, white) !important;
 }
 
 .icon{
@@ -95,6 +120,14 @@
     position: absolute;
     top: 0;
     right: -40px;
+}
+
+.message[data-type="error"] .icon{
+    background-color: var(--error-color);
+    color: darkred;
+    position: absolute;
+    top: 0;
+    left: -40px;
 }
 
 .message[data-type="assistant"] .icon{

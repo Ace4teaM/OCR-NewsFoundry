@@ -77,3 +77,49 @@ Produis une synthèse répondant à la demande initiale.
         raise RuntimeError(
             f"Impossible de générer la synthèse des actualités : {e}"
         ) from e
+
+
+    
+async def synthesize_articles(messages:str, message: str) -> str:
+    """
+    Génère une synthèse des actualités correspondant à la demande utilisateur à partir des articles fournis.
+
+    Args:
+        messages: Messages contenant les articles complets récupérés depuis World News API.
+        message: Demande initiale de l'utilisateur.
+
+    Returns:
+        Synthèse rédigée par l'agent.
+
+    Raises:
+        ValueError: Si aucun article n'est disponible.
+        RuntimeError: Si la génération de la synthèse échoue.
+    """
+
+    text = "\n".join(
+        item["message"] for item in messages
+        if item["message"] and item["message"].strip()
+    )
+
+    prompt = f"""
+DEMANDE INITIALE DE L'UTILISATEUR :
+
+{message}
+
+ARTICLES DISPONIBLES :
+
+<articles>
+{text}
+</articles>
+
+Produis une synthèse répondant à la demande initiale.
+"""
+
+    try:
+        result = await synthesis_agent.run(prompt)
+        return result.output.strip()
+
+    except Exception as e:
+        raise RuntimeError(
+            f"Impossible de générer la synthèse des actualités : {e}"
+        ) from e

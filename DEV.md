@@ -13,7 +13,44 @@ https://ocr-newsfoundry.onrender.com/
 - Un mot de passe incorrect ne permet pas de se connecter
 
 
-## Executer les unitaires:
+## Executer les tests unitaires:
 ```bash
 uv run --env-file .env pytest -v
+```
+
+## Logique d'exécution du chat
+Fonctionnement du chat et enchaînement des différentes étapes nécessaires au traitement d'un message utilisateur. Décrit le rôle des agents IA, les décisions prises en fonction de la demande, ainsi que l'orchestration des traitements par le backend, depuis la réception du message jusqu'à la génération de la réponse.
+
+```mermaid
+flowchart TD
+    A[[Message utilisateur]]
+    A --> B{Nouveau Chat ?}
+    B -->|OUI| C(Classification\nmessage)
+    B -->|NON| P(Contextualisation\nmessage)
+    
+    P -->|Réponse connue| Q[Réponse]
+
+    P -->|Recherche| R[Réponse]
+    R -->V{Période ?}
+    V -->|OUI| W[Récupération News]
+    W -->Y(Synthétiser News)
+    Y -->YY[Réponse]
+    V -->|NON| X[Demande précision]
+
+    P -->|ReSynthétiser| S[Récupération contexte]
+    S --> SS(Synthétiser contexte)
+    SS -->SSS[Réponse]
+
+    P -->|Clarifier| T[Réponse]
+
+    P -->|Fin de conversation| U[Fin]
+
+    C -->|Recherche actualité| I{Période ?}
+    C -->|Question générale| F(Prompt LLM)
+    F -->O[Réponse]
+    C -->|Hors sujet| G[Réponse]
+    I -->|NON| K[Demande précision]
+    I -->|OUI| L[Récupération News]
+    L --> M(Synthétiser News)
+    M -->N[Réponse]
 ```
