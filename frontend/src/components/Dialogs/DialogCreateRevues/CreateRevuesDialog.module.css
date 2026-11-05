@@ -1,0 +1,42 @@
+.content{
+    display: flex;
+    flex-direction: column;
+    min-width: 400px;
+}
+
+.header{
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+    margin-top: 20px;
+}
+
+.form
+{
+    display: flex;
+    flex-direction: column;
+    margin: 20px;
+}
+
+.footer
+{
+    display: flex;
+    margin-top: 20px;
+}
+
+.footer > *
+{
+    flex: 1;
+}
+
+.title{
+    font-weight: bold;
+    font-size: 1.2em;
+    margin-bottom: 20px;
+}
+
+
+.form label{
+    font-weight: 400;
+}
+

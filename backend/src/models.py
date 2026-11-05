@@ -15,3 +15,10 @@ class Chat(SQLModel, table=True):
     title: str = Field()
     created_at: date = Field(default_factory=date.today)
     messages: str = Field()
+
+class Revue(SQLModel, table=True):
+    id: Optional[int] = Field(primary_key=True)
+    user_id: int = Field(foreign_key="user.id")
+    theme: str = Field()
+    created_at: date = Field(default_factory=date.today)
+    content: str = Field()

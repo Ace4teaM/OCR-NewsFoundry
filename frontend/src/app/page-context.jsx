@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { fetchApi, postApi } from "@/utils/http";
 import { useRouter } from "next/navigation";
 import { useAppContext } from "@/contexts/AppContext";
+import { CreateRevuesDialog } from "@/components/Dialogs";
 
 const PageContext = createContext(null);
 
@@ -17,11 +18,43 @@ export function PageProvider({ children }) {
   const [ selectedItem, setSelectedItem ] = useState(null)
   const [ items, setItems ] = useState([])
   const [ messages, setMessages ] = useState([])
+  const [ revues, setRevues ] = useState([])
+  const [ contentView, setContentView ] = useState("chat")
   const { setError, setUser, user } = useAppContext();
 
+  const { openDialog } = useAppContext();
   const router = useRouter();
   
     const chatId = Number(searchParams.get("chat_id"));
+
+    const refreshRevue = (showView) => {
+        async function fetchRevues() {
+            try {
+                const result = await fetchApi(`revues`);
+
+                if(result.success == false)
+                    throw new Error(result.message);
+
+                setRevues(result.data);
+                if(showView)
+                    setContentView("revues");
+            } catch (error) {
+                setError(error.message);
+            }
+        }
+
+        fetchRevues();
+    };
+
+    const createRevue = () => {
+        openDialog(
+            // dialog
+            CreateRevuesDialog, 
+            // dialog props
+            {chat_id: chatId}, 
+            // success
+            () => refreshRevue(true))
+    };
 
     const login = () => {
         router.replace("/login", { scroll: false });
@@ -69,6 +102,30 @@ export function PageProvider({ children }) {
         fetchChats();
     }, [user]);
 
+    // charge les revues du chat sélectionné
+    useEffect(() => {
+        // l'utilisateur doit etre loggé
+        if (!user){
+            setRevues([]);
+            return;
+        }
+
+        async function fetchRevues() {
+            try {
+                const result = await fetchApi(`revues`);
+
+                if(result.success == false)
+                    throw new Error(result.message);
+
+                setRevues(result.data);
+            } catch (error) {
+                setError(error.message);
+            }
+        }
+
+        fetchRevues();
+    }, [user]);
+
     // si le paramètre chat_id est présent, on sélectionne le chat correspondant
     useEffect(() => {
         
@@ -85,7 +142,9 @@ export function PageProvider({ children }) {
         setSelectedItem(found);
     }, [chatId, items]);
 
-    // si la sélection change on définit le paramètre chat_id dans l'URL (sans rechargement)
+    // si la sélection change 
+    // on définit le paramètre chat_id dans l'URL (sans rechargement) 
+    // on charge les messages du chat correspondant
     useEffect(() => {
         const params = new URLSearchParams(searchParams);
 
@@ -93,6 +152,7 @@ export function PageProvider({ children }) {
             params.delete("chat_id");
             router.replace(`/?${params.toString()}`, { scroll: false });
             setMessages([]);
+            setRevues([]);
             return;
         }
 
@@ -111,6 +171,7 @@ export function PageProvider({ children }) {
                     throw new Error(result.message);
                 
                 setMessages(JSON.parse(result.data.messages));
+                setContentView("chat");
             } catch (error) {
                 setError(error.message);
             }
@@ -121,7 +182,7 @@ export function PageProvider({ children }) {
 
     return (
         <PageContext.Provider
-            value={{ selectedItem, setSelectedItem, items, setItems, messages, setMessages, logoutAction: logout, loginAction: login }}
+            value={{ selectedItem, setSelectedItem, items, setItems, messages, setMessages, revues, setRevues, contentView, setContentView, logoutAction: logout, loginAction: login, createRevue }}
         >
             {children}
         </PageContext.Provider>

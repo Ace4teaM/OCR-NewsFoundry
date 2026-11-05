@@ -14,7 +14,7 @@ from pydantic import BaseModel, EmailStr
 from sqlmodel import Session, insert, select
 import bcrypt
 import uvicorn
-from models import Chat, User
+from models import Chat, User, Revue
 import bcrypt
 import jwt
 from ai import prompt_agent
@@ -56,6 +56,10 @@ class CreateChat(BaseModel):
     """Données nécessaires à la création d'un chat."""
     title: str
     message: str | None = None
+
+class CreateRevue(BaseModel):
+    """Données nécessaires à la création d'une revue de presse."""
+    theme: str
 
 @dataclass
 class ResponseApi():
@@ -655,6 +659,57 @@ async def create_message(
         "message": message,
         "response": response
     })
+
+
+@app.post("/chats/{chat_id}/revues")
+def create_revue(
+    chat_id: int,
+    revue_data: CreateRevue,
+    current_user: Annotated[User, Depends(get_current_user)]
+):
+    with Session(engine) as session:
+
+        # Vérifie que le chat appartient à l'utilisateur
+        chat = session.exec(
+            select(Chat).where(
+                Chat.id == chat_id,
+                Chat.user_id == current_user.id
+            )
+        ).first()
+
+        if not chat:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Action non autorisée",
+            )
+
+        content = "TEST"
+
+        revue = Revue(
+            user_id=current_user.id,
+            theme=revue_data.theme,
+            content=content
+        )
+
+        session.add(revue)
+        session.commit()
+        session.refresh(revue)
+
+        return ResponseApi(success=True, message="Revue de presse générée avec succès", data=revue)
+
+@app.get("/revues")
+def get_revues(
+    current_user: Annotated[User, Depends(get_current_user)]
+):
+    with Session(engine) as session:
+
+        revues = session.exec(
+            select(Revue)
+            .where(Revue.user_id == current_user.id)
+            .order_by(Revue.created_at.desc())
+        ).all()
+
+        return ResponseApi(success=True, message="Revues trouvées", data=revues)
 
 if __name__ == "__main__":
     init_db()

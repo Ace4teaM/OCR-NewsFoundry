@@ -74,3 +74,33 @@
     flex: 0 0 auto;
     width: 50px;
 }
+
+.back{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.backTitle{
+    font-size: 1rem;
+}
+
+.backLabel{
+    font-size: 0.8rem;
+    color: var(--slate-600);
+}
+
+.chatContent{
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0 16px;
+}
+
+.revuesContent{
+    display: flex;
+    justify-content: flex-start;
+    width: 100%;
+    padding: 0 16px;
+    gap: 16px;
+}

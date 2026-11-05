@@ -25,12 +25,6 @@
     font-weight: bold;
 }
 
-.container[data-style="primary"]:hover,
-.container[data-style="primary"]:focus
-{
-    background-color: var(--slate-dark);
-}
-
 .container[data-style="primary"]:disabled
 {
     background-color: var(--slate-500);
@@ -43,12 +37,6 @@
 {
     background-color: var(--slate-dark);
     color: var(--slate-white);
-}
-
-.container[data-style="secondary"]:hover,
-.container[data-style="secondary"]:focus
-{
-    background-color: var(--slate-800);
 }
 
 .container[data-style="secondary"]:disabled

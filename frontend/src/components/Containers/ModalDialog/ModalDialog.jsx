@@ -3,7 +3,6 @@
 import { useRef, useId, useState, useEffect } from 'react';
 import styles from './ModalDialog.module.css'
 import {BaseCard} from "@/components/Cards";
-import {X} from "lucide-react";
 
 const ModalDialog = ({
     Component,
@@ -70,7 +69,7 @@ const ModalDialog = ({
   return (
     <dialog id={dialog_id} className={styles.container} onMouseUp={handleMouseUp} onMouseDown={handleMouseDown} onClose={(e)=>closeDialog(dialogResult)} {...props}>
       <BaseCard className={styles.content}>
-         <span className={styles.closeBtn} onClick={onClickClose}><X></X></span>
+         <span className={styles.closeBtn} onClick={onClickClose}>Fermer</span>
          <Component {...ComponentProps} setDialogResult={setDialogResult} setCloseConfirmMessage={setCloseConfirmMessage} />
       </BaseCard>
     </dialog>

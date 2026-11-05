@@ -54,3 +54,8 @@ flowchart TD
     L --> M(Synthétiser News)
     M -->N[Réponse]
 ```
+
+## Revues de presses
+
+Chaque utilisateur dispose de son historique de revues de presses générées à partir des différents chat de discutions
+L'utilisateur à la possibilité ensuite de visualiser l'ensemble des revues de presses dans une vue dédiée

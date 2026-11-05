@@ -37,7 +37,7 @@ export default function Menu({data, setSelectedItem, selectedItem, isLogged, log
 
   return (
     <nav className={styles.menu}>
-        <header><LogoLarge className={styles.logo} /></header>
+        <header><a href="/"><LogoLarge className={styles.logo} /></a></header>
         <section>
             {items &&
             <ul>

@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { PageProvider } from "./page-context";
 
 import Menu from "./page-menu.jsx";
-import Chat from "./page-chat.jsx";
+import Content from "./page-content.jsx";
 import Actions from "./page-actions.jsx";
 import Prompt from "./page-prompt.jsx";
 
@@ -20,7 +20,7 @@ export default async function Home() {
               <Actions />
             </header>
             <section>
-              <Chat />
+              <Content />
             </section>
             <footer>
               <Prompt />
