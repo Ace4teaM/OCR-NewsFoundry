@@ -37,7 +37,8 @@ class UserRequest(BaseModel):
 
     subject: str | None = Field(
         default=None,
-        description="Sujet principal de la demande."
+        description="Sujet principal de la demande.",
+        min_length=16
     )
 
     category: str | None = Field(
@@ -138,6 +139,7 @@ RÈGLES :
 - clarification_question doit contenir une seule question précise.
 - Ne pas demander de clarification si la demande est suffisamment claire.
 - Une demande courte n'est pas nécessairement ambiguë.
+- N'inventes pas de dates si elles ne sont pas explicitement spécifiées par l'utilisateur.
 - Ne pas considérer une question comme hors sujet uniquement parce qu'elle ne contient pas le mot actualité ou information.
 """
 )

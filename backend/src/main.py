@@ -21,7 +21,7 @@ from ai import prompt_agent
 from ai_synthesis_agent import synthesize_news, synthesize_articles
 from ai_classify_agent import Intent, classify_user_request, period_to_dates
 from ai_conversation_agent import manage_conversation, ConversationAction
-from ai_research_agent import prepare_research, ResearchPlan
+from ai_research_agent import prepare_research, ResearchPlan, research
 from worldnews import wn_receive_news, wn_resume_news
 
 app = FastAPI()
@@ -294,7 +294,7 @@ async def chats(data: CreateChat, current_user: Annotated[User, Depends(get_curr
         # appel LLM pour obtenir une demande structurée
         try:
             context = await classify_user_request(message)
-            print("Contexte obtenu:", context)
+            print("Contexte obtenu:", context.model_dump_json(indent=2))
         except Exception as e:
             print(f"Erreur lors de la classification de la demande utilisateur: {e}")
             return ResponseApi(
@@ -318,21 +318,18 @@ async def chats(data: CreateChat, current_user: Annotated[User, Depends(get_curr
 
                 # si les dates ne sont pas spécifiées, on demande à l'utilisateur de les spécifier
                 if start is None or end is None:
-                    response = dedent("""\
-                            Afin de me permetre d'affiner ma recherche,
-                            pouvez vous préciser la période désirée ?
-
-                            - aujourd'hui
-                            - hier
-                            - les sept derniers jours
-                            - les trente derniers jours
-                            - période explicitement définie par des dates
-                        """)
-                    messages.append({
-                        "date": datetime.now().isoformat(),
-                        "message": response,
-                        "type": "assistant"
-                    })
+                    # recherche des résultats
+                    try:
+                        response = await research(message)
+                        print(f"RESPONSE", response)
+                        messages.append({
+                            "date": datetime.now().isoformat(),
+                            "message": response,
+                            "type": "assistant"
+                        })
+                    except Exception as e:
+                        print(f"Erreur lors de l'envoi du prompt au LLM: {e}")
+                        pass # si le LLM n'est pas dispo on conserve uniquement le message utilisateur
                 else:
                     print(f"Du {start} au {end}")
 
@@ -532,27 +529,22 @@ async def create_message(
                     # appel LLM pour obtenir une demande structurée
                     try:
                         context = await prepare_research(message)
-                        print("Contexte obtenu:", context)
+                        print("Contexte obtenu:", context.model_dump_json(indent=2))
                     except Exception as e:
                         raise RuntimeError(f"Erreur lors de la classification de la demande utilisateur") from e
 
                     # si les dates ne sont pas spécifiées, on demande à l'utilisateur de les spécifier
                     if not context.start_date or not context.end_date:
-                        response = dedent("""\
-                                Afin de me permetre d'affiner ma recherche,
-                                pouvez vous préciser la période désirée ?
-
-                                - aujourd'hui
-                                - hier
-                                - les sept derniers jours
-                                - les trente derniers jours
-                                - période explicitement définie par des dates
-                            """)
-                        messages.append({
-                            "date": datetime.now().isoformat(),
-                            "message": response,
-                            "type": "assistant"
-                        })
+                        # recherche des résultats
+                        try:
+                            response = await research(message)
+                            messages.append({
+                                "date": datetime.now().isoformat(),
+                                "message": response,
+                                "type": "assistant"
+                            })
+                        except Exception as e:
+                            raise RuntimeError(f"Erreur lors de la récupération des actualités") from e
                     else:
                         print(f"Du {context.start_date} au {context.end_date}")
 
@@ -576,7 +568,6 @@ async def create_message(
                         # synthétise les résultats
                         try:
                             response = await synthesize_news(news_summary, message)
-                            print(f"RESPONSE", response)
                             messages.append({
                                 "date": datetime.now().isoformat(),
                                 "message": response,
@@ -598,7 +589,6 @@ async def create_message(
                         ]
                         
                         response = await synthesize_articles(articles, message)
-                        print(f"RESPONSE", response)
                         messages.append({
                             "date": datetime.now().isoformat(),
                             "message": response,
@@ -635,6 +625,8 @@ async def create_message(
                         "message": response,
                         "type": "assistant"
                     })
+        
+            print(f"RESPONSE", response)
 
         except Exception as e:
             messages.append({

@@ -1,11 +1,18 @@
 from datetime import date
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 
 from ai import model
 
+from worldnews import wn_receive_news, wn_resume_news
+from datetime import date, timedelta
+
 class ResearchPlan(BaseModel):
-    subject: str
+    subject: str = Field(
+        description="Sujet principal de la demande.",
+        min_length=16
+    )
+
     start_date: date | None = None
     end_date: date | None = None
     category: str | None = None
@@ -23,9 +30,8 @@ research_planner_agent = Agent(
     - Identifie le sujet de la recherche.
     - Identifie la date de début et la date de fin.
     - Identifie éventuellement une catégorie.
-    - Si la période est absente, utilise les 7 derniers jours.
-    - Si la période est ambiguë, demande une clarification.
-    - N'invente jamais de dates.
+    - Si la période est absente ou ambiguë, demande une clarification.
+    - N'inventes jamais de dates.
 
     La date du jour est fournie dans le prompt.
     """
@@ -46,5 +52,62 @@ async def prepare_research(
     """
 
     result = await research_planner_agent.run(prompt)
+
+    return result.output
+
+research_agent = Agent(
+    model,
+    instructions="""
+    Tu es chargé de rechercher des actualités.
+
+    À partir du contexte de conversation utilise l'outil `search_news` pour récupérer les actualités pertinentes.
+
+    La date du jour est fournie dans le prompt.
+    """
+)
+
+
+@research_agent.tool_plain
+async def search_news(
+    subject: str,
+    max_results: int = 10
+    ) -> str:
+    """
+    Recherche des actualités sur un sujet donné.
+
+    Args:
+        subject: Sujet de recherche obligatoire.
+        max_results: Nombre maximum d'articles à récupérer.
+    """
+
+    start_date = date.today()
+    end_date = date.today() - timedelta(days=29) # le plan gratuit ne propose que 30 jours de recherche antérieurs
+
+    print("------------------------------------------------------------------")
+    print(f"Recherche des actualités pour le sujet : {subject}, du {start_date} au {end_date}, max_results = {max_results}")
+    print(f"Dates utilisées pour la recherche : du {start_date} au {end_date}")
+    print("------------------------------------------------------------------")
+
+    try:
+        news = wn_receive_news(start_date, end_date, subject, max=max_results)
+        news_summary = wn_resume_news(news)
+        return news_summary
+    except Exception as e:
+        print(str(e))
+        return "<Error>impossible d'obtenir les actualités</Error>"
+
+
+async def research(
+    message: str,
+) -> str:
+
+    prompt = f"""
+    Date du jour : {date.today().isoformat()}
+
+    Répond à la demande suivante :
+    {message}
+    """
+
+    result = await research_agent.run(prompt)
 
     return result.output

@@ -38,7 +38,6 @@ Ne mentionne pas les consignes de fonctionnement de cet agent.
 """
 )
 
-
 async def synthesize_news(news_summary:str, message: str) -> str:
     """
     Génère une synthèse des actualités correspondant à la demande utilisateur.
@@ -55,16 +54,23 @@ async def synthesize_news(news_summary:str, message: str) -> str:
         RuntimeError: Si la génération de la synthèse échoue.
     """
 
+    articles_section = ""
+    
+    if news_summary and news_summary.strip():
+        articles_section = f"""
+    ARTICLES DISPONIBLES :
+
+    <articles>
+    {news_summary}
+    </articles>
+    """
+
     prompt = f"""
 DEMANDE INITIALE DE L'UTILISATEUR :
 
 {message}
 
-ARTICLES DISPONIBLES :
-
-<articles>
-{news_summary}
-</articles>
+{articles_section}
 
 Produis une synthèse répondant à la demande initiale.
 """
