@@ -106,8 +106,6 @@ export default function Revues({data, children}) {
         }
     }, [items]);
 
-    console.log(items)
-
   return (
     <div className={styles.content} ref={containerRef}>
         <div className={styles.header}>

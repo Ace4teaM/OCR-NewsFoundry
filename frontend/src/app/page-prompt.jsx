@@ -31,7 +31,6 @@ export default function Component() {
   useEffect(()=>{
     if(post.hasError == true)
     {
-        console.log("RESULT",post.result?.data)
         if(post.result?.data?.response)
         {
             // ajoute la réponse à la liste des messages existants

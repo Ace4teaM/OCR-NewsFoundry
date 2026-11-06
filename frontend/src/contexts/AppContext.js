@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, useRef } from "react";
 import {ModalDialog} from "@/components/Containers";
 import ErrorNotification from "@/components/ErrorNotification/ErrorNotification";
+import InfoNotification from "@/components/InfoNotification/InfoNotification";
 import { fetchApi } from "@/utils/http";
 
 const AppContext = createContext(null);
@@ -12,6 +13,7 @@ export function AppProvider({ children }) {
   const [dialog, setDialog] = useState(null);
   const dialogRef = useRef(null);
   const [ error, setError ] = useState(null)
+  const [ notification, setNotification ] = useState(null)
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const firstAuth = useRef(null);
@@ -77,6 +79,8 @@ export function AppProvider({ children }) {
         closeDialog,
         setError,
         error,
+        setNotification,
+        notification,
         user,
         setUser,
         isLogged,
@@ -92,6 +96,13 @@ export function AppProvider({ children }) {
       <ErrorNotification
           message={error}
           onClose={() => setError(null)}
+          duration={5000}
+      />
+      )}
+      {notification && (
+      <InfoNotification
+          message={notification}
+          onClose={() => setNotification(null)}
           duration={5000}
       />
       )}
