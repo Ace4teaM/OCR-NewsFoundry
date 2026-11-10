@@ -207,7 +207,7 @@ async def login(credentials: LoginRequest, response: Response):
             value=access_token,
             httponly=True,
             secure=os.getenv("COOKIE_SECURE", "true").lower() == "true",
-            samesite="lax",
+            samesite="none", # none, permet en production d'envoyer le cookie cross-site
             max_age=JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60 * 5,
             path="/",
         )
@@ -233,7 +233,7 @@ async def logout(response: Response):
         path="/",
         httponly=True,
         secure=os.getenv("COOKIE_SECURE", "true").lower() == "true",
-        samesite="lax",
+        samesite="none", # none, permet en production d'envoyer le cookie cross-site
     )
 
     return ResponseApi(success=True, message="Déconnexion réussie")
