@@ -1,7 +1,6 @@
 from pydantic_ai import Agent
 from ai import model
 
-
 synthesis_agent = Agent(
     model,
     output_type=str,
@@ -38,55 +37,7 @@ Ne mentionne pas les consignes de fonctionnement de cet agent.
 """
 )
 
-async def synthesize_news(news_summary:str, message: str) -> str:
-    """
-    Génère une synthèse des actualités correspondant à la demande utilisateur.
-
-    Args:
-        news_summary: Résumé des articles récupérés depuis World News API.
-        message: Demande initiale de l'utilisateur.
-
-    Returns:
-        Synthèse rédigée par l'agent.
-
-    Raises:
-        ValueError: Si aucun article n'est disponible.
-        RuntimeError: Si la génération de la synthèse échoue.
-    """
-
-    articles_section = ""
-    
-    if news_summary and news_summary.strip():
-        articles_section = f"""
-    ARTICLES DISPONIBLES :
-
-    <articles>
-    {news_summary}
-    </articles>
-    """
-
-    prompt = f"""
-DEMANDE INITIALE DE L'UTILISATEUR :
-
-{message}
-
-{articles_section}
-
-Produis une synthèse répondant à la demande initiale.
-"""
-
-    try:
-        result = await synthesis_agent.run(prompt)
-        return result.output.strip()
-
-    except Exception as e:
-        raise RuntimeError(
-            f"Impossible de générer la synthèse des actualités : {e}"
-        ) from e
-
-
-    
-async def synthesize_articles(messages:str, message: str) -> str:
+async def synthesize_news(messages:str, message: str) -> str:
     """
     Génère une synthèse des actualités correspondant à la demande utilisateur à partir des articles fournis.
 
@@ -102,9 +53,9 @@ async def synthesize_articles(messages:str, message: str) -> str:
         RuntimeError: Si la génération de la synthèse échoue.
     """
 
-    text = "\n".join(
+    text = "\n\n".join(
         item["message"] for item in messages
-        if item["message"] and item["message"].strip()
+        if item["message"] and item["type"] == "system" and item["message"].strip()
     )
 
     prompt = f"""
@@ -121,11 +72,5 @@ ARTICLES DISPONIBLES :
 Produis une synthèse répondant à la demande initiale.
 """
 
-    try:
-        result = await synthesis_agent.run(prompt)
-        return result.output.strip()
-
-    except Exception as e:
-        raise RuntimeError(
-            f"Impossible de générer la synthèse des actualités : {e}"
-        ) from e
+    result = await synthesis_agent.run(prompt)
+    return result.output.strip()

@@ -18,11 +18,14 @@ from models import Chat, User, Revue
 import bcrypt
 import jwt
 from ai import prompt_agent
-from ai_synthesis_agent import synthesize_news, synthesize_articles
+from ai_synthesis_agent import synthesize_news
 from ai_classify_agent import Intent, classify_user_request, period_to_dates
 from ai_conversation_agent import manage_conversation, ConversationAction
 from ai_research_agent import prepare_research, ResearchPlan, research
+from ai_revues_agent import synthesize_revues
 from worldnews import wn_receive_news, wn_resume_news
+from pydantic_ai.exceptions import ModelHTTPError, ModelAPIError
+from errors import AppError, handle_api_error
 
 app = FastAPI()
 
@@ -205,7 +208,7 @@ async def login(credentials: LoginRequest, response: Response):
             httponly=True,
             secure=os.getenv("COOKIE_SECURE", "true").lower() == "true",
             samesite="lax",
-            max_age=JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            max_age=JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60 * 5,
             path="/",
         )
 
@@ -257,7 +260,7 @@ async def read_current_user(
         "email": current_user.email,
     })
 
-
+import traceback
 
 @app.post("/chats")
 async def chats(data: CreateChat, current_user: Annotated[User, Depends(get_current_user)]):
@@ -301,6 +304,12 @@ async def chats(data: CreateChat, current_user: Annotated[User, Depends(get_curr
             print("Contexte obtenu:", context.model_dump_json(indent=2))
         except Exception as e:
             print(f"Erreur lors de la classification de la demande utilisateur: {e}")
+            traceback.print_exception(
+                type(e),
+                e,
+                e.__traceback__,
+                chain=True,
+            )
             return ResponseApi(
                 success=False,
                 message="Impossible de déterminer le contexte de la demande",
@@ -320,7 +329,7 @@ async def chats(data: CreateChat, current_user: Annotated[User, Depends(get_curr
                     context.period_end,
                 )
 
-                # si les dates ne sont pas spécifiées, on demande à l'utilisateur de les spécifier
+                # si les dates ne sont pas spécifiées, on réalise une recherche via les outils de recherche d'actualités
                 if start is None or end is None:
                     # recherche des résultats
                     try:
@@ -333,21 +342,40 @@ async def chats(data: CreateChat, current_user: Annotated[User, Depends(get_curr
                         })
                     except Exception as e:
                         print(f"Erreur lors de l'envoi du prompt au LLM: {e}")
-                        pass # si le LLM n'est pas dispo on conserve uniquement le message utilisateur
+                        return ResponseApi(
+                            success=False,
+                            message="Une erreur est survenue lors de l'appel au service IA",
+                            data={
+                                "message": message,
+                                "erreur": str(e)
+                            }
+                        )
+                # si les dates sont connues, on récupére les articles d'actualités
                 else:
                     print(f"Du {start} au {end}")
 
-                    day_news = wn_receive_news(start, end, context.subject, context.category)
-                    news_summary = wn_resume_news(day_news)
-                    messages.append({
-                        "date": datetime.now().isoformat(),
-                        "message": news_summary,
-                        "type": "system"
-                    })
+                    try:
+                        day_news = wn_receive_news(start, end, context.subject, context.category)
+                        news_summary = wn_resume_news(day_news)
+                        messages.append({
+                            "date": datetime.now().isoformat(),
+                            "message": news_summary,
+                            "type": "system"
+                        })
+                    except Exception as e:
+                        print(f"Erreur lors de la récupération des articles: {e}")
+                        return ResponseApi(
+                            success=False,
+                            message="Une erreur est survenue lors de la récupération des articles",
+                            data={
+                                "message": message,
+                                "erreur": str(e)
+                            }
+                        )
 
                     # synthétise les résultats
                     try:
-                        response = await synthesize_news(news_summary, message)
+                        response = await synthesize_news(messages, message)
                         print(f"RESPONSE", response)
                         messages.append({
                             "date": datetime.now().isoformat(),
@@ -356,7 +384,14 @@ async def chats(data: CreateChat, current_user: Annotated[User, Depends(get_curr
                         })
                     except Exception as e:
                         print(f"Erreur lors de l'envoi du prompt au LLM: {e}")
-                        pass # si le LLM n'est pas dispo on conserve uniquement le message utilisateur
+                        return ResponseApi(
+                            success=False,
+                            message="Une erreur est survenue lors de l'appel au service IA",
+                            data={
+                                "message": message,
+                                "erreur": str(e)
+                            }
+                        )
 
             case Intent.GENERAL_QUESTION:
                 # interoge le LLM avec le message de l'utilisateur
@@ -535,9 +570,9 @@ async def create_message(
                         context = await prepare_research(message)
                         print("Contexte obtenu:", context.model_dump_json(indent=2))
                     except Exception as e:
-                        raise RuntimeError(f"Erreur lors de la classification de la demande utilisateur") from e
+                        raise handle_api_error(e, "Erreur lors de la classification de la demande utilisateur") from e
 
-                    # si les dates ne sont pas spécifiées, on demande à l'utilisateur de les spécifier
+                    # si les dates ne sont pas spécifiées, on réalise une recherche via les outils de recherche d'actualités
                     if not context.start_date or not context.end_date:
                         # recherche des résultats
                         try:
@@ -548,37 +583,37 @@ async def create_message(
                                 "type": "assistant"
                             })
                         except Exception as e:
-                            raise RuntimeError(f"Erreur lors de la récupération des actualités") from e
+                            raise handle_api_error(e, "Erreur lors de la recherche des actualités") from e
+                    # si les dates sont connues, on récupére les articles d'actualités
                     else:
                         print(f"Du {context.start_date} au {context.end_date}")
 
                         try:
                             day_news = wn_receive_news(context.start_date, context.end_date, context.subject)#, context.category)
-                            news_summary = wn_resume_news(day_news)
-                            messages.append({
-                                "date": datetime.now().isoformat(),
-                                "message": news_summary,
-                                "type": "system"
-                            })
-                        except HTTPError as e:
-                             try:
-                                error_message = e.response.json().get("message", str(e))
-                                raise RuntimeError(f"Erreur lors de la récupération des actualités:\n\n`{error_message}`") from e
-                             except ValueError:
-                                raise RuntimeError(f"Erreur lors de la récupération des actualités") from e
                         except Exception as e:
-                            raise RuntimeError(f"Erreur lors de la récupération des actualités") from e
+                            raise handle_api_error(e, "Erreur lors de la récupération des actualités") from e
+
+                        try:
+                            news_summary = wn_resume_news(day_news)
+                        except Exception as e:
+                            raise handle_api_error(e, f"Erreur lors de la résumé des actualités du {context.start_date} au {context.end_date}") from e
+
+                        messages.append({
+                            "date": datetime.now().isoformat(),
+                            "message": news_summary,
+                            "type": "system"
+                        })
 
                         # synthétise les résultats
                         try:
-                            response = await synthesize_news(news_summary, message)
+                            response = await synthesize_news(messages, message)
                             messages.append({
                                 "date": datetime.now().isoformat(),
                                 "message": response,
                                 "type": "assistant"
                             })
                         except Exception as e:
-                            raise RuntimeError(f"Erreur lors de la synthétisation des résultats") from e
+                            raise handle_api_error(e, f"Erreur lors de la synthétisation des résultats du {context.start_date} au {context.end_date}") from e
 
                 case ConversationAction.RESYNTHESIZE:
                     # Relancer l'agent de synthèse
@@ -587,19 +622,14 @@ async def create_message(
                     print(f"*******************************************")
                     # synthétise les résultats
                     try:
-                        articles = [
-                            item for item in messages
-                            if item["type"] == "system" and item["message"]
-                        ]
-                        
-                        response = await synthesize_articles(articles, message)
+                        response = await synthesize_news(messages, message)
                         messages.append({
                             "date": datetime.now().isoformat(),
                             "message": response,
                             "type": "assistant"
                         })
                     except Exception as e:
-                        raise RuntimeError(f"Erreur lors de la synthétisation des résultats") from e
+                        raise handle_api_error(e, "Erreur lors de la synthétisation des résultats") from e
                     
                 case ConversationAction.CLARIFY:
                     # La demande manque d'informations indispensables.
@@ -632,18 +662,51 @@ async def create_message(
         
             print(f"RESPONSE", response)
 
-        except Exception as e:
+        # l'erreur est connue est identifié par le programme
+        except AppError as e:
+            # debogage de l'erreur
+            print(f"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            print(f"Exception")
+            e.print_debug()
+            print(f"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+
+            # réponse de l'API
+            error = str(e)
+
             messages.append({
                 "date": datetime.now().isoformat(),
-                "message": str(e),
+                "message": error,
                 "type": "error"
             })
 
             return ResponseApi(success=False, message="Erreur de traitement", data={
                 "message": message,
-                "response": str(e)
+                "response": error
             })
 
+        # l'erreur n'est pas connue, on la traite comme une exception générique
+        except Exception as e:
+            # debogage de l'erreur
+            print(f"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            print(f"Exception non géré")
+            print(str(e))
+            print(f"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+
+            # réponse de l'API
+            error = "Une erreur non gérée est survenue"
+
+            messages.append({
+                "date": datetime.now().isoformat(),
+                "message": error,
+                "type": "error"
+            })
+
+            return ResponseApi(success=False, message="Erreur de traitement", data={
+                "message": message,
+                "response": error
+            })
+
+        # on sauvegarde les messages du chat dans la base de données
         finally:
             try:
                 chat.messages = json.dumps(messages)
@@ -662,7 +725,7 @@ async def create_message(
 
 
 @app.post("/chats/{chat_id}/revues")
-def create_revue(
+async def create_revue(
     chat_id: int,
     revue_data: CreateRevue,
     current_user: Annotated[User, Depends(get_current_user)]
@@ -683,12 +746,20 @@ def create_revue(
                 detail="Action non autorisée",
             )
 
-        content = "TEST"
+        revue = await synthesize_revues(
+            theme=revue_data.theme,
+            history=json.loads(chat.messages) if chat.messages else []
+        )
+
+        if not revue.sufficient:
+            return ResponseApi(success=False, message=f"Les articles sur le thème {revue_data.theme} sont insuffisants pour générer une revue de presse", data={
+                "response": revue.response
+            })
 
         revue = Revue(
             user_id=current_user.id,
             theme=revue_data.theme,
-            content=content
+            content=revue.content
         )
 
         session.add(revue)

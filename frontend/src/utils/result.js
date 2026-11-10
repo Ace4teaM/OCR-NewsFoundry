@@ -36,13 +36,13 @@ export async function parseResponseAPI(response){
         return new Result(false, respData, respData.detail);
     }
 
-    // La requête a réussie ?
+    // La demande a réussie ?
     if (respData?.success == true)
     {
         return new Result(true, respData?.data, respData?.message);
     }
 
-    // La requête a échouée ?
+    // La demande a échouée ?
     if (respData?.success == false)
     {
         return new Result(false, respData?.data, respData?.message ?? "Erreur inconnue");

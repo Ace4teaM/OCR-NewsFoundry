@@ -1,4 +1,5 @@
 import os
+from tracemalloc import start
 from urllib import response
 import requests
 from datetime import datetime, timedelta
@@ -61,6 +62,45 @@ def wn_receive_news(start: datetime, end: datetime, subject:str = None, category
     return response.json()
 
 
+def wn_get_news(ids: str, timeout: int = 30) -> dict:
+    """
+    Récupère un article de presse par son identifiant.
+
+    Args:
+        ids: Identifiants des articles à récupérer, séparés par des virgules.
+        timeout: Délai d'attente pour la requête en secondes.
+
+    Returns:
+        Réponse JSON de World News API.
+
+    Raises:
+        RuntimeError: Si la récupération des articles échoue.
+    """
+
+    params = {
+        "api-key": WORLDNEWS_API_KEY,
+        "language": "fr",
+        "ids": ids
+    }
+
+    print(params)
+
+    response = requests.get(
+        "https://api.worldnewsapi.com/retrieve-news",
+        params=params,
+        timeout=timeout,
+    )
+
+    if not response.ok:
+        print("Code HTTP :", response.status_code)
+        print("Réponse API :", response.text)
+
+        response.raise_for_status()
+
+    return response.json()
+
+
+
 def wn_resume_news(news: dict) -> str:
     """
     Formate les articles récupérés pour leur transmission à un agent IA.
@@ -74,8 +114,10 @@ def wn_resume_news(news: dict) -> str:
     articles = news.get("news", [])
     content = ""
     for article in articles:
+        id = article.get("id", "")
+        category = article.get("category", "")
         title = article.get("title", "")
         summary = article.get("summary", "")
         publish_date = article.get("publish_date", "")
-        content += f"Titre: {title}\nRésumé: {summary}\nDate de publication: {publish_date}\n\n"
+        content += f"Titre: {title}\nIdentifiant: {id}\nCatégorie: {category}\nDate de publication: {publish_date}\nRésumé: {summary}\n\n"
     return content

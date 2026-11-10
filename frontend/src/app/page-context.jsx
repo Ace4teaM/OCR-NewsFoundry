@@ -27,7 +27,7 @@ export function PageProvider({ children }) {
   
     const chatId = Number(searchParams.get("chat_id"));
 
-    const refreshRevue = (showView) => {
+    const refreshRevue = () => {
         async function fetchRevues() {
             try {
                 const result = await fetchApi(`revues`);
@@ -36,8 +36,7 @@ export function PageProvider({ children }) {
                     throw new Error(result.message);
 
                 setRevues(result.data);
-                if(showView)
-                    setContentView("revues");
+                setContentView("revues");
             } catch (error) {
                 setError(error.message);
             }
@@ -53,7 +52,7 @@ export function PageProvider({ children }) {
             // dialog props
             {chat_id: chatId}, 
             // success
-            () => refreshRevue(true))
+            () => refreshRevue())
     };
 
     const login = () => {

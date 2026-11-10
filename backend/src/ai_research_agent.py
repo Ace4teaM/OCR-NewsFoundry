@@ -1,11 +1,18 @@
 from datetime import date
 from pydantic import BaseModel, Field
-from pydantic_ai import Agent
+from pydantic_ai import Agent, capture_run_messages
 
 from ai import model
 
-from worldnews import wn_receive_news, wn_resume_news
+from worldnews import wn_get_news, wn_receive_news, wn_resume_news
 from datetime import date, timedelta
+
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 class ResearchPlan(BaseModel):
     subject: str = Field(
@@ -60,14 +67,24 @@ research_agent = Agent(
     instructions="""
     Tu es chargé de rechercher des actualités.
 
-    À partir du contexte de conversation utilise l'outil `search_news` pour récupérer les actualités pertinentes.
+    Tools:
+    - Utilise l'outil `search_news` pour récupérer des actualités pertinentes à partir d'un sujet donné.
+    - Utilise l'outil `get_news` pour récupérer des articles spécifiques à partir de leurs identifiants.
+
+    Récupére les identifiants des articles à partir de l'historique de conversation.
+    Chaque identifiant doit être utilisé avec l'outil `get_news` pour obtenir les détails de l'article.
 
     La date du jour est fournie dans le prompt.
     """
 )
 
 
+# reraise=True, renvoie l'exception rencontré (sinon RetryError)
 @research_agent.tool_plain
+@retry(
+    stop=stop_after_attempt(2),
+    reraise=True,
+)
 async def search_news(
     subject: str,
     max_results: int = 10
@@ -97,6 +114,35 @@ async def search_news(
         return "<Error>impossible d'obtenir les actualités</Error>"
 
 
+# reraise=True, renvoie l'exception rencontré (sinon RetryError)
+@research_agent.tool_plain
+@retry(
+    stop=stop_after_attempt(2),
+    reraise=True, 
+)
+async def get_news(
+    ids: str
+    ) -> str:
+    """
+    Obtient un ou plusieurs articles d'actualités à partir de leurs identifiants.
+
+    Args:
+        ids: Identifiants des articles à récupérer, séparés par des virgules.
+    """
+
+    print("------------------------------------------------------------------")
+    print(f"Recherche de l'article avec l'id : {ids}")
+    print("------------------------------------------------------------------")
+
+    try:
+        news = wn_get_news(ids)
+        news_summary = wn_resume_news(news)
+        return news_summary
+    except Exception as e:
+        print(str(e))
+        return f"<Error>impossible d'obtenir les actualités avec les ids {ids}</Error>"
+
+
 async def research(
     message: str,
 ) -> str:
@@ -108,6 +154,14 @@ async def research(
     {message}
     """
 
-    result = await research_agent.run(prompt)
+    try:
+        with capture_run_messages() as messages:
+            result = await research_agent.run(prompt)
+            return result.output
 
-    return result.output
+    except Exception as e:
+        print(f"[AGENT MESSAGES]:")
+        for message in messages:
+            print(message)
+
+        raise e
