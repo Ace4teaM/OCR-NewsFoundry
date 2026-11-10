@@ -26,6 +26,7 @@ from ai_revues_agent import synthesize_revues
 from worldnews import wn_receive_news, wn_resume_news
 from pydantic_ai.exceptions import ModelHTTPError, ModelAPIError
 from errors import AppError, handle_api_error
+import sys
 
 app = FastAPI()
 
@@ -37,11 +38,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+COOKIE_SECURE = os.getenv("COOKIE_SECURE", "true").lower() == "true"
 JWT_SECRET_KEY = os.environ["JWT_SECRET_KEY"]
 JWT_ALGORITHM = "HS256"
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(
     os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "30")
 )
+CAN_USE_PARTITIONNED_COOKIES = sys.version_info >= (3, 14)
+ON_PRODUCTION = COOKIE_SECURE
 
 bearer_scheme = HTTPBearer()
 
@@ -206,9 +210,9 @@ async def login(credentials: LoginRequest, response: Response):
             key="access_token",
             value=access_token,
             httponly=True,
-            secure=os.getenv("COOKIE_SECURE", "true").lower() == "true",
-            samesite="none", # none, permet en production d'envoyer le cookie cross-site
-            partitioned=True, # permet de conserver des cookies tiers, mais en les isolant par site
+            secure=COOKIE_SECURE,
+            samesite="none" if ON_PRODUCTION else "lax", # none, permet en production d'envoyer le cookie cross-site
+            partitioned=CAN_USE_PARTITIONNED_COOKIES, # permet de conserver des cookies tiers, mais en les isolant par site 
             max_age=JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60 * 5,
             path="/",
         )
@@ -233,9 +237,9 @@ async def logout(response: Response):
         key="access_token",
         path="/",
         httponly=True,
-        secure=os.getenv("COOKIE_SECURE", "true").lower() == "true",
-        samesite="none", # none, permet en production d'envoyer le cookie cross-site
-        partitioned=True, # permet de conserver des cookies tiers, mais en les isolant par site
+        secure=COOKIE_SECURE,
+        samesite="none" if ON_PRODUCTION else "lax", # none, permet en production d'envoyer le cookie cross-site
+        partitioned=CAN_USE_PARTITIONNED_COOKIES, # permet de conserver des cookies tiers, mais en les isolant par site
     )
 
     return ResponseApi(success=True, message="Déconnexion réussie")
