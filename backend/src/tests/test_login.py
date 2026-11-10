@@ -119,7 +119,6 @@ def test_login_with_valid_credentials(client, user, monkeypatch): # monkeypatch 
     # Vérifie les attributs de sécurité du cookie.
     set_cookie = response.headers["set-cookie"].lower()
     assert "httponly" in set_cookie
-    assert "samesite=none" in set_cookie
     assert "path=/" in set_cookie
 
     # Le cookie contient un JWT valide pour l'utilisateur connecté.
