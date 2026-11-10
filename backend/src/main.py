@@ -39,13 +39,13 @@ app.add_middleware(
 )
 
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "true").lower() == "true"
+COOKIE_SAMESITE = "none" if COOKIE_SECURE else "lax"
 JWT_SECRET_KEY = os.environ["JWT_SECRET_KEY"]
 JWT_ALGORITHM = "HS256"
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(
     os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "30")
 )
-CAN_USE_PARTITIONNED_COOKIES = sys.version_info >= (3, 14)
-ON_PRODUCTION = COOKIE_SECURE
+CAN_USE_PARTITIONED_COOKIES = sys.version_info >= (3, 14)
 
 bearer_scheme = HTTPBearer()
 
@@ -206,13 +206,18 @@ async def login(credentials: LoginRequest, response: Response):
 
         access_token = create_access_token(user.id)
 
+        print("Python version:", sys.version)
+        print("COOKIE_SECURE:", COOKIE_SECURE)
+        print("COOKIE_SAMESITE:", COOKIE_SAMESITE)
+        print("PARTITIONED:", CAN_USE_PARTITIONED_COOKIES)
+
         response.set_cookie(
             key="access_token",
             value=access_token,
             httponly=True,
             secure=COOKIE_SECURE,
-            samesite="none" if ON_PRODUCTION else "lax", # none, permet en production d'envoyer le cookie cross-site
-            partitioned=CAN_USE_PARTITIONNED_COOKIES, # permet de conserver des cookies tiers, mais en les isolant par site 
+            samesite=COOKIE_SAMESITE, # none, permet en production d'envoyer le cookie cross-site
+            partitioned=CAN_USE_PARTITIONED_COOKIES, # permet de conserver des cookies tiers, mais en les isolant par site 
             max_age=JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
             path="/",
         )
@@ -238,8 +243,8 @@ async def logout(response: Response):
         path="/",
         httponly=True,
         secure=COOKIE_SECURE,
-        samesite="none" if ON_PRODUCTION else "lax", # none, permet en production d'envoyer le cookie cross-site
-        partitioned=CAN_USE_PARTITIONNED_COOKIES, # permet de conserver des cookies tiers, mais en les isolant par site
+        samesite=COOKIE_SAMESITE, # none, permet en production d'envoyer le cookie cross-site
+        partitioned=CAN_USE_PARTITIONED_COOKIES, # permet de conserver des cookies tiers, mais en les isolant par site
     )
 
     return ResponseApi(success=True, message="Déconnexion réussie")
