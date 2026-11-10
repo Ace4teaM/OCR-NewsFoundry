@@ -244,7 +244,6 @@ async def logout(response: Response):
         httponly=True,
         secure=COOKIE_SECURE,
         samesite=COOKIE_SAMESITE, # none, permet en production d'envoyer le cookie cross-site
-        partitioned=CAN_USE_PARTITIONED_COOKIES, # permet de conserver des cookies tiers, mais en les isolant par site
     )
 
     return ResponseApi(success=True, message="Déconnexion réussie")

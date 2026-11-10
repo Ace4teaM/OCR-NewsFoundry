@@ -23,6 +23,7 @@ export class Result {
  * @returns {Result} - Objet Result représentant le succès ou l'échec de la requête
  */
 export async function parseResponseAPI(response){
+
     // La réponse attendue est de type JSON
     const respData = await response.json().catch(() => null);
     if (!respData)

@@ -52,7 +52,7 @@ export function AppProvider({ children }) {
           try {
               const result = await fetchApi("/me");
 
-              if (result.success) {
+              if (result?.success) {
                   setUser(result.data);
               } else {
                   setUser(null);
