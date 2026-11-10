@@ -30,7 +30,7 @@ export function PageProvider({ children }) {
     const refreshRevue = () => {
         async function fetchRevues() {
             try {
-                const result = await fetchApi(`revues`);
+                const result = await fetchApi(`/revues`);
 
                 if(result.success == false)
                     throw new Error(result.message);
@@ -61,7 +61,7 @@ export function PageProvider({ children }) {
 
     const logout = async () => {
         try {
-            const result = await postApi(`logout`);
+            const result = await postApi(`/logout`);
 
             if(result.success == false)
                 throw new Error(result.message);
@@ -87,7 +87,7 @@ export function PageProvider({ children }) {
          */
         async function fetchChats() {
             try {
-                const result = await fetchApi(`chats`);
+                const result = await fetchApi(`/chats`);
 
                 if(result.success == false)
                     throw new Error(result.message);
@@ -111,7 +111,7 @@ export function PageProvider({ children }) {
 
         async function fetchRevues() {
             try {
-                const result = await fetchApi(`revues`);
+                const result = await fetchApi(`/revues`);
 
                 if(result.success == false)
                     throw new Error(result.message);
@@ -164,7 +164,7 @@ export function PageProvider({ children }) {
          */
         async function fetchChat() {
             try {
-                const result = await fetchApi(`chats/${selectedItem.id}`);
+                const result = await fetchApi(`/chats/${selectedItem.id}`);
                 
                 if(result.success == false)
                     throw new Error(result.message);
