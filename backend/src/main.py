@@ -213,7 +213,7 @@ async def login(credentials: LoginRequest, response: Response):
             secure=COOKIE_SECURE,
             samesite="none" if ON_PRODUCTION else "lax", # none, permet en production d'envoyer le cookie cross-site
             partitioned=CAN_USE_PARTITIONNED_COOKIES, # permet de conserver des cookies tiers, mais en les isolant par site 
-            max_age=JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60 * 5,
+            max_age=JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
             path="/",
         )
 
