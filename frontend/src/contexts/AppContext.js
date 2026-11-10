@@ -50,7 +50,7 @@ export function AppProvider({ children }) {
       
       async function checkAuth() {
           try {
-              const result = await fetchApi("me");
+              const result = await fetchApi("/me");
 
               if (result.success) {
                   setUser(result.data);

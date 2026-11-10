@@ -1,9 +1,10 @@
 'use client'
 
+import { API_URL } from "@/config";
 import { useState, useEffect, useMemo } from 'react'
 import { parseResponseAPI, Result } from "@/utils/result";
  
-export default function Put(url, put, domain = process.env.NEXT_PUBLIC_API_URL, handleResponse = parseResponseAPI) {
+export default function Put(url, put, domain = API_URL, handleResponse = parseResponseAPI) {
     const [result, setResult] = useState(null)
     const [isLoading, setLoading] = useState(false)
 
