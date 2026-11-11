@@ -1,16 +1,28 @@
 import os
 from tracemalloc import start
 from urllib import response
-import requests
 from datetime import datetime, timedelta
+import httpx
+from pydantic import BaseModel, Field
 
 WORLDNEWS_API_KEY = os.getenv("WORLDNEWS_API_KEY")
 
 if not WORLDNEWS_API_KEY:
     raise RuntimeError("La variable WORLDNEWS_API_KEY est manquante")
 
+# données retourné par world news API
+class Article(BaseModel):
+    id: int | str
+    title: str
+    text: str | None = None
+    summary: str | None = None
+    url: str | None = None
+    publish_date: datetime | None = None
+    authors: list[str] = Field(default_factory=list)
+    image: str | None = None
 
-def wn_receive_news(start: datetime, end: datetime, subject:str = None, category:str = None, max: int = 10, timeout: int = 30) -> dict:
+
+async def wn_receive_news(start: datetime, end: datetime, subject:str = None, category:str = None, max: int = 10, timeout: int = 30) -> dict:
     """
     Récupère les articles de presse sur une période donnée.
 
@@ -47,22 +59,23 @@ def wn_receive_news(start: datetime, end: datetime, subject:str = None, category
 
     print(params)
 
-    response = requests.get(
-        "https://api.worldnewsapi.com/search-news",
-        params=params,
-        timeout=timeout,
-    )
+    async with httpx.AsyncClient(timeout=timeout) as client:
 
-    if not response.ok:
-        print("Code HTTP :", response.status_code)
-        print("Réponse API :", response.text)
+        response = await client.get(
+            "https://api.worldnewsapi.com/search-news",
+            params=params
+        )
 
-        response.raise_for_status()
+        if not response.is_success:
+            print("Code HTTP :", response.status_code)
+            print("Réponse API :", response.text)
 
-    return response.json()
+            response.raise_for_status()
+
+        return response.json()
 
 
-def wn_get_news(ids: str, timeout: int = 30) -> dict:
+async def wn_get_news(ids: str, timeout: int = 30) -> dict:
     """
     Récupère un article de presse par son identifiant.
 
@@ -85,23 +98,24 @@ def wn_get_news(ids: str, timeout: int = 30) -> dict:
 
     print(params)
 
-    response = requests.get(
-        "https://api.worldnewsapi.com/retrieve-news",
-        params=params,
-        timeout=timeout,
-    )
+    async with httpx.AsyncClient(timeout=timeout) as client:
 
-    if not response.ok:
-        print("Code HTTP :", response.status_code)
-        print("Réponse API :", response.text)
+        response = await client.get(
+            "https://api.worldnewsapi.com/retrieve-news",
+            params=params
+        )
 
-        response.raise_for_status()
+        if not response.is_success:
+            print("Code HTTP :", response.status_code)
+            print("Réponse API :", response.text)
 
-    return response.json()
+            response.raise_for_status()
+
+        return response.json()
 
 
 
-def wn_resume_news(news: dict) -> str:
+def wn_resume_news(news: dict | list[Article]) -> str:
     """
     Formate les articles récupérés pour leur transmission à un agent IA.
 
@@ -111,7 +125,11 @@ def wn_resume_news(news: dict) -> str:
     Returns:
         Texte contenant les titres, résumés et dates des articles.
     """
-    articles = news.get("news", [])
+    if isinstance(news, dict):
+        articles = news.get("news", [])
+    else:
+        articles = news
+
     content = ""
     for article in articles:
         id = article.get("id", "")
@@ -119,5 +137,5 @@ def wn_resume_news(news: dict) -> str:
         title = article.get("title", "")
         summary = article.get("summary", "")
         publish_date = article.get("publish_date", "")
-        content += f"Titre: {title}\nIdentifiant: {id}\nCatégorie: {category}\nDate de publication: {publish_date}\nRésumé: {summary}\n\n"
+        content += f"# {title}\n\n* Identifiant: {id}\n* Catégorie: {category}\n* Date de publication: {publish_date}\n\nRésumé:\n{summary}\n\n\n"
     return content

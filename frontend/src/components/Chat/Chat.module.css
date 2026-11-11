@@ -44,15 +44,17 @@
     flex: 1;
     overflow-y: auto;
     height: 100%;
+    width: 0;
 }
 
-.message{
+.message {
     position: relative;
     padding: 10px 20px;
     margin: 10px 0;
     border-radius: 8px;
-    overflow: visible;
+    overflow-wrap: anywhere;
     max-width: 80%;
+    box-sizing: border-box;
 }
 
 .message[data-type="user"]{

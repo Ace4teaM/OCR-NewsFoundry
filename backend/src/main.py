@@ -1,6 +1,3 @@
-from email import message
-from textwrap import dedent
-from requests.exceptions import HTTPError
 import os
 from dataclasses import dataclass
 import json
@@ -10,7 +7,7 @@ from database import init_db, engine
 from fastapi import FastAPI, HTTPException, status, Response, Cookie, Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from sqlmodel import Session, insert, select
 import bcrypt
 import uvicorn
@@ -19,14 +16,14 @@ import bcrypt
 import jwt
 from ai import prompt_agent
 from ai_synthesis_agent import synthesize_news
-from ai_classify_agent import Intent, classify_user_request, period_to_dates
-from ai_conversation_agent import manage_conversation, ConversationAction
-from ai_research_agent import prepare_research, ResearchPlan, research
+from ai_classify_agent import Action, classify_user_request, period_to_dates
+from ai_research_agent import research, search_news
 from ai_revues_agent import synthesize_revues
-from worldnews import wn_receive_news, wn_resume_news
-from pydantic_ai.exceptions import ModelHTTPError, ModelAPIError
+from worldnews import Article, wn_receive_news, wn_resume_news
 from errors import AppError, handle_api_error
 import sys
+import traceback
+from result import Result
 
 app = FastAPI()
 
@@ -164,6 +161,233 @@ def get_current_user(
     return user
 
 
+async def prompt(prompt: str, chat: Chat | None, session: Session | None, current_user: User):
+    """
+    Nouvelle demande de l'utilisateur.
+
+    Analyse la demande de l'utilisateur et tente de déterminer le contexte et l'intention.
+
+    Args:
+        prompt: Message envoyé par l'utilisateur.
+        chat: Objet Chat contenant l'historique des messages précédents. Peut être None si aucun historique n'est disponible.
+        session: Session SQLAlchemy pour les opérations sur la base de données.
+        current_user: Utilisateur actuellement authentifié.
+
+    Returns:
+        Résultat de la demande, peut être retourné avec ResponseApi().
+
+    Raises:
+        HTTPException: Si l'utilisateur n'est pas authentifié.
+    """
+
+    prompt = prompt.strip() if prompt else None
+    if not prompt:
+        return Result(
+            success=False,
+            message="Le message ne peut pas être vide.",
+            data=None
+        )
+
+    print("************************************************")
+    print("Demande initiale:", prompt)
+    print("************************************************")
+
+    # objet créé
+    message = None
+    response = None
+    revue = None
+
+    # historique des messages précédents
+    messages = json.loads(chat.messages) if chat else []
+
+    # archive le prompt
+    messages.append({
+        "date": datetime.now().isoformat(),
+        "type": "user",
+        "message": prompt
+    })
+
+    # agent de qualification
+    # appel LLM pour obtenir une demande structurée
+    try:
+        context = await classify_user_request(prompt, messages)
+        print("************************************************")
+        print("Contexte obtenu:", context.model_dump_json(indent=2))
+        print("************************************************")
+    except Exception as e:
+        return Result(
+            success=False,
+            message="Impossible de déterminer le contexte de la demande",
+            data={
+                "prompt": prompt,
+                "erreur": str(e)
+            }
+        )
+
+    try:
+        match context.action:
+            # La réponse est connue
+            case Action.RESPOND:
+                if context.response:
+                    response=context.response
+
+            # demande une recherche d'actualités
+            case Action.NEWS_SEARCH | Action.NEWS_QUESTION:
+                # ajoute du contexte à la discution
+                # récupère les actualités du jour depuis l'API World News
+                start, end = period_to_dates(
+                    context.period,
+                    context.period_start,
+                    context.period_end,
+                )
+
+                # si les dates ne sont pas spécifiées, on réalise une recherche via les outils de recherche d'actualités
+                if start is None or end is None:
+                    # recherche des résultats
+                    results = await research(context.subject)
+
+                    news_summary = wn_resume_news(results.articles)
+
+                    messages.append({
+                        "date": datetime.now().isoformat(),
+                        "message": news_summary,
+                        "type": "system"
+                    })
+                # si les dates sont connues, on récupére les articles d'actualités
+                else:
+                    day_news = await wn_receive_news(start, end, context.subject)
+
+                    news_summary = wn_resume_news(day_news)
+
+                    messages.append({
+                        "date": datetime.now().isoformat(),
+                        "message": news_summary,
+                        "type": "system"
+                    })
+
+    
+                response = await synthesize_news(messages, message)
+
+            case Action.RESYNTHESIZE:
+                # interoge le LLM avec le message de l'utilisateur
+                if messages:
+                    response = await synthesize_news(messages, message)
+                else:
+                    raise AppError("Aucun chat existant pour synthétiser les actualités.")
+
+            # La réponse est connue
+            case Action.CLARIFY:
+                if context.question:
+                    response=context.question
+
+            case Action.GENERAL_QUESTION:
+                # interoge le LLM avec le message de l'utilisateur
+                response = await prompt_agent(message)
+
+            case Action.OUT_OF_SCOPE:
+                response = "Je ne suis pas sûr de pouvoir répondre à cette question. Veuillez poser une question sur l'actualité."
+
+            case Action.END:
+                response = "Très bien, terminons la conversation."
+
+            case Action.MAKE_REVIEW:
+                # chat existant ?
+                if chat:
+                    synthese = await synthesize_revues(
+                        theme=context.subject,
+                        history=messages
+                    )
+
+                    if not synthese.sufficient:
+                        raise AppError(f"Les articles sur le thème {context.subject} sont insuffisants pour générer une revue de presse")
+                    else:
+                        revue = Revue(
+                            user_id=current_user.id,
+                            theme=context.subject,
+                            content=synthese.content
+                        )
+                        message = "Revue de presse générée avec succès."
+                # si pas de chat, on recherche des actualités
+                else:
+                    resume = await search_news(context.subject, 10)
+                    print("resume",resume)
+                    revue = Revue(
+                        user_id=current_user.id,
+                        theme=context.subject,
+                        content=resume
+                    )
+                    message = "Revue de presse générée avec succès."
+
+            case _:
+                raise AppError("Je ne parviens pas à déterminer le sens de votre question. Pouvez vous reformuler votre question ?")
+
+    except AppError as e:
+        print("EXCEPTION:", e)
+        app_error = handle_api_error(e)
+        return Result(
+            success=False,
+            message=e.message,
+            data={
+                "prompt": prompt,
+                "erreur": str(e)
+            }
+        )
+    except Exception as e:
+        print("EXCEPTION:", e)
+        app_error = handle_api_error(e)
+        app_error.print_debug()
+        return Result(
+            success=False,
+            message=app_error.message,
+            data={
+                "prompt": prompt,
+                "erreur": str(e)
+            }
+        )
+
+    if response and chat:
+
+        messages.append({
+            "date": datetime.now().isoformat(),
+            "type": "assistant",
+            "message": response
+        })
+
+        chat.messages=json.dumps(messages)
+
+        session.add(chat)
+        session.commit()
+        session.refresh(chat)
+
+        return Result(
+            success=True,
+            message="Conversation générée avec succès.",
+            data={
+                "response": response,
+                "chat": chat
+            }
+        )
+
+    if revue:
+        session.add(revue)
+        session.commit()
+        session.refresh(revue)
+
+        return Result(
+            success=True,
+            message="Revue de presse générée avec succès.",
+            data={
+                "revue": revue
+            }
+        )
+
+    return Result(
+        success=False,
+        message="Impossible de répondre à la demande.",
+        data={}
+    )
+
+
 @app.get("/")
 async def hello():
     return ResponseApi(success = True, message = "👋")
@@ -270,18 +494,13 @@ async def read_current_user(
         "email": current_user.email,
     })
 
-import traceback
 
 @app.post("/chats")
 async def chats(data: CreateChat, current_user: Annotated[User, Depends(get_current_user)]):
     """
     Crée un nouveau chat pour l'utilisateur authentifié.
 
-    Crée un nouveau chat associé à l'utilisateur authentifié. Si un message initial est fourni,
-    il est envoyé au LLM et la réponse est ajoutée à l'historique des messages.
-
     Args:
-        data: Données nécessaires à la création du chat.
         current_user: Utilisateur actuellement authentifié.
 
     Returns:
@@ -292,154 +511,17 @@ async def chats(data: CreateChat, current_user: Annotated[User, Depends(get_curr
         HTTPException: Si l'utilisateur n'est pas authentifié.
     """
 
-    message = data.message.strip() if data.message else None
-
-    print("************************************************")
-    print("Message initial:", message)
-    print("************************************************")
+    # crée un nouveau chat si nécessaire
 
     messages = []
-    if message:
-        # archive le message de l'utilisateur
-        messages.append({
-            "date": datetime.now().isoformat(),
-            "message": message,
-            "type": "user"
-        })
 
-        # agent de qualification
-        # appel LLM pour obtenir une demande structurée
-        try:
-            context = await classify_user_request(message)
-            print("Contexte obtenu:", context.model_dump_json(indent=2))
-        except Exception as e:
-            print(f"Erreur lors de la classification de la demande utilisateur: {e}")
-            traceback.print_exception(
-                type(e),
-                e,
-                e.__traceback__,
-                chain=True,
-            )
-            return ResponseApi(
-                success=False,
-                message="Impossible de déterminer le contexte de la demande",
-                data={
-                    "message": message,
-                    "erreur": str(e)
-                }
-            )
-
-        match context.intent:
-            case Intent.NEWS_SEARCH | Intent.NEWS_QUESTION:
-                # ajoute du contexte à la discution
-                # récupère les actualités du jour depuis l'API World News
-                start, end = period_to_dates(
-                    context.period,
-                    context.period_start,
-                    context.period_end,
-                )
-
-                # si les dates ne sont pas spécifiées, on réalise une recherche via les outils de recherche d'actualités
-                if start is None or end is None:
-                    # recherche des résultats
-                    try:
-                        response = await research(message)
-                        print(f"RESPONSE", response)
-                        messages.append({
-                            "date": datetime.now().isoformat(),
-                            "message": response,
-                            "type": "assistant"
-                        })
-                    except Exception as e:
-                        print(f"Erreur lors de l'envoi du prompt au LLM: {e}")
-                        return ResponseApi(
-                            success=False,
-                            message="Une erreur est survenue lors de l'appel au service IA",
-                            data={
-                                "message": message,
-                                "erreur": str(e)
-                            }
-                        )
-                # si les dates sont connues, on récupére les articles d'actualités
-                else:
-                    print(f"Du {start} au {end}")
-
-                    try:
-                        day_news = wn_receive_news(start, end, context.subject, context.category)
-                        news_summary = wn_resume_news(day_news)
-                        messages.append({
-                            "date": datetime.now().isoformat(),
-                            "message": news_summary,
-                            "type": "system"
-                        })
-                    except Exception as e:
-                        print(f"Erreur lors de la récupération des articles: {e}")
-                        return ResponseApi(
-                            success=False,
-                            message="Une erreur est survenue lors de la récupération des articles",
-                            data={
-                                "message": message,
-                                "erreur": str(e)
-                            }
-                        )
-
-                    # synthétise les résultats
-                    try:
-                        response = await synthesize_news(messages, message)
-                        print(f"RESPONSE", response)
-                        messages.append({
-                            "date": datetime.now().isoformat(),
-                            "message": response,
-                            "type": "assistant"
-                        })
-                    except Exception as e:
-                        print(f"Erreur lors de l'envoi du prompt au LLM: {e}")
-                        return ResponseApi(
-                            success=False,
-                            message="Une erreur est survenue lors de l'appel au service IA",
-                            data={
-                                "message": message,
-                                "erreur": str(e)
-                            }
-                        )
-
-            case Intent.GENERAL_QUESTION:
-                # interoge le LLM avec le message de l'utilisateur
-                try:
-                    response = await prompt_agent(message)
-                    print(f"RESPONSE", response)
-                    messages.append({
-                        "date": datetime.now().isoformat(),
-                        "message": response,
-                        "type": "assistant"
-                    })
-                except Exception as e:
-                    print(f"Erreur lors de l'envoi du prompt au LLM: {e}")
-                    pass # si le LLM n'est pas dispo on conserve uniquement le message utilisateur
-
-            case Intent.OUT_OF_SCOPE:
-                response = "Je ne suis pas sûr de pouvoir répondre à cette question. Veuillez poser une question sur l'actualité."
-                messages.append({
-                    "date": datetime.now().isoformat(),
-                    "message": response,
-                    "type": "assistant"
-                })
-
-            case _:
-                response = "Je ne parviens pas à déterminer le sens de votre question. Pouvez vous reformuler votre question ?"
-                messages.append({
-                    "date": datetime.now().isoformat(),
-                    "message": response,
-                    "type": "assistant"
-                })
-
-    else:
-        response = "Comment puis je vous aider ? Posez moi une question sur l'actualité."
-        messages.append({
-            "date": datetime.now().isoformat(),
-            "message": response,
-            "type": "assistant"
-        })
+    response = "Comment puis je vous aider ? Posez moi une question sur l'actualité."
+    
+    messages.append({
+        "date": datetime.now().isoformat(),
+        "message": response,
+        "type": "assistant"
+    })
 
     with Session(engine) as session:
         chat = Chat(
@@ -455,13 +537,9 @@ async def chats(data: CreateChat, current_user: Annotated[User, Depends(get_curr
         return ResponseApi(
             success=True,
             message="Chat créé avec succès",
-            data={
-                "id": chat.id,
-                "title": chat.title,
-                "messages": chat.messages,
-                "created_at": chat.created_at
-            }
+            data=chat
         )
+
 
 @app.get("/chats")
 async def get_chats(
@@ -494,6 +572,7 @@ async def get_chats(
             for chat in chats
         ])
     
+
 @app.get("/chats/{chat_id}")
 async def get_chat(
     chat_id: int,
@@ -525,6 +604,24 @@ async def get_chat(
             "messages": chat.messages,
         })
 
+
+@app.post("/prompt")
+async def user_prompt(
+    data: CreateMessage,
+    current_user: Annotated[User, Depends(get_current_user)]
+):
+
+    with Session(engine) as session:
+        result = await prompt(
+            data.message,
+            None,
+            session,
+            current_user
+        )
+
+        return ResponseApi(result.success, result.message, result.data)
+
+
 @app.post("/chats/{chat_id}/messages")
 async def create_message(
     chat_id: int,
@@ -537,201 +634,15 @@ async def create_message(
             raise HTTPException(status_code=404, detail="Chat introuvable")
         if chat.user_id != current_user.id:
             raise HTTPException(status_code=401, detail="Non autorisé")
-        messages = json.loads(chat.messages)
-        message = data.message.strip()
 
-        # archive le message de l'utilisateur
-        messages.append({
-            "date": datetime.now().isoformat(),
-            "message": message,
-            "type": "user"
-        })
+        result = await prompt(
+            data.message,
+            chat,
+            session,
+            current_user
+        )
 
-
-        # détermine la demande de l'utilisateur à partir du message et du contexte de la conversation
-        try:
-            decision = await manage_conversation(
-                message=message,
-                history=messages
-            )
-            
-            print(decision.model_dump_json(indent=2))
-
-            match decision.action:
-                case ConversationAction.RESPOND if decision.response and decision.response.strip():
-                    print(f"*******************************************")
-                    print(f"RESPONSE", decision.response)
-                    print(f"*******************************************")
-                    response = decision.response
-                    messages.append({
-                        "date": datetime.now().isoformat(),
-                        "message": decision.response,
-                        "type": "assistant"
-                    })
-                case ConversationAction.RESEARCH:
-                    # Lancer la recherche d'articles
-                    print(f"*******************************************")
-                    print(f"RESEARCH action triggered")
-                    print(f"*******************************************")
-                    response = ""
-                    # agent de qualification
-                    # appel LLM pour obtenir une demande structurée
-                    try:
-                        context = await prepare_research(message)
-                        print("Contexte obtenu:", context.model_dump_json(indent=2))
-                    except Exception as e:
-                        raise handle_api_error(e, "Erreur lors de la classification de la demande utilisateur") from e
-
-                    # si les dates ne sont pas spécifiées, on réalise une recherche via les outils de recherche d'actualités
-                    if not context.start_date or not context.end_date:
-                        # recherche des résultats
-                        try:
-                            response = await research(message)
-                            messages.append({
-                                "date": datetime.now().isoformat(),
-                                "message": response,
-                                "type": "assistant"
-                            })
-                        except Exception as e:
-                            raise handle_api_error(e, "Erreur lors de la recherche des actualités") from e
-                    # si les dates sont connues, on récupére les articles d'actualités
-                    else:
-                        print(f"Du {context.start_date} au {context.end_date}")
-
-                        try:
-                            day_news = wn_receive_news(context.start_date, context.end_date, context.subject)#, context.category)
-                        except Exception as e:
-                            raise handle_api_error(e, "Erreur lors de la récupération des actualités") from e
-
-                        try:
-                            news_summary = wn_resume_news(day_news)
-                        except Exception as e:
-                            raise handle_api_error(e, f"Erreur lors de la résumé des actualités du {context.start_date} au {context.end_date}") from e
-
-                        messages.append({
-                            "date": datetime.now().isoformat(),
-                            "message": news_summary,
-                            "type": "system"
-                        })
-
-                        # synthétise les résultats
-                        try:
-                            response = await synthesize_news(messages, message)
-                            messages.append({
-                                "date": datetime.now().isoformat(),
-                                "message": response,
-                                "type": "assistant"
-                            })
-                        except Exception as e:
-                            raise handle_api_error(e, f"Erreur lors de la synthétisation des résultats du {context.start_date} au {context.end_date}") from e
-
-                case ConversationAction.RESYNTHESIZE:
-                    # Relancer l'agent de synthèse
-                    print(f"*******************************************")
-                    print(f"RESYNTHESIZE action triggered")
-                    print(f"*******************************************")
-                    # synthétise les résultats
-                    try:
-                        response = await synthesize_news(messages, message)
-                        messages.append({
-                            "date": datetime.now().isoformat(),
-                            "message": response,
-                            "type": "assistant"
-                        })
-                    except Exception as e:
-                        raise handle_api_error(e, "Erreur lors de la synthétisation des résultats") from e
-                    
-                case ConversationAction.CLARIFY:
-                    # La demande manque d'informations indispensables.
-                    print(f"*******************************************")
-                    print(f"CLARIFY action triggered")
-                    print(f"*******************************************")
-                    response = decision.complement if decision.complement and decision.complement.strip() else "Pouvez vous clarifier votre demande ?"
-                    messages.append({
-                        "date": datetime.now().isoformat(),
-                        "message": response,
-                        "type": "assistant"
-                    })
-
-                case ConversationAction.END:
-                    print(f"*******************************************")
-                    print(f"END action triggered")
-                    print(f"*******************************************")
-                    response = ""
-
-                case _:
-                    print(f"*******************************************")
-                    print(f"Unknown action triggered")
-                    print(f"*******************************************")
-                    response = "Je ne parviens pas à déterminer le sens de votre question. Pouvez vous reformuler votre question ?"
-                    messages.append({
-                        "date": datetime.now().isoformat(),
-                        "message": response,
-                        "type": "assistant"
-                    })
-        
-            print(f"RESPONSE", response)
-
-        # l'erreur est connue est identifié par le programme
-        except AppError as e:
-            # debogage de l'erreur
-            print(f"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-            print(f"Exception")
-            e.print_debug()
-            print(f"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-
-            # réponse de l'API
-            error = str(e)
-
-            messages.append({
-                "date": datetime.now().isoformat(),
-                "message": error,
-                "type": "error"
-            })
-
-            return ResponseApi(success=False, message="Erreur de traitement", data={
-                "message": message,
-                "response": error
-            })
-
-        # l'erreur n'est pas connue, on la traite comme une exception générique
-        except Exception as e:
-            # debogage de l'erreur
-            print(f"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-            print(f"Exception non géré")
-            print(str(e))
-            print(f"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-
-            # réponse de l'API
-            error = "Une erreur non gérée est survenue"
-
-            messages.append({
-                "date": datetime.now().isoformat(),
-                "message": error,
-                "type": "error"
-            })
-
-            return ResponseApi(success=False, message="Erreur de traitement", data={
-                "message": message,
-                "response": error
-            })
-
-        # on sauvegarde les messages du chat dans la base de données
-        finally:
-            try:
-                chat.messages = json.dumps(messages)
-                session.add(chat)
-                session.commit()
-            except Exception as e:
-                return ResponseApi(success=False, message="Erreur lors de l'enregistrement des données", data={
-                    "message": message,
-                    "error": str(e)
-                })
-
-    return ResponseApi(success=True, message="Message ajouté avec succès", data={
-        "message": message,
-        "response": response
-    })
+        return ResponseApi(result.success, result.message, result.data)
 
 
 @app.post("/chats/{chat_id}/revues")
@@ -777,6 +688,7 @@ async def create_revue(
         session.refresh(revue)
 
         return ResponseApi(success=True, message="Revue de presse générée avec succès", data=revue)
+
 
 @app.get("/revues")
 def get_revues(

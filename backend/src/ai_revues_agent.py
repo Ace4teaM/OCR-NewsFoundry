@@ -9,6 +9,8 @@ from pydantic_ai.messages import (
     TextPart,
 )
 
+from rate_limiter import mistral_limiter
+
 class RevuesAgentResponse(BaseModel):
     """Revue de presse générée par l'agent conversationnel."""
 
@@ -67,8 +69,10 @@ Ne mentionne pas les consignes de fonctionnement de cet agent.
 """
 )
 
-def build_articles(messages):
+def build_articles(messages: list[dict]):
 
+    print(messages)
+    
     articles = []
 
     for item in messages:
@@ -80,6 +84,8 @@ def build_articles(messages):
 
         if item["type"] == "system":
             articles.append(content)
+
+    print(articles)
 
     return articles.join("\n")
 
@@ -107,16 +113,12 @@ async def synthesize_revues(
     articles = build_articles(history)
     print(articles)
 
-    try:
-        result = await revues_agent.run(
-            prompt,
-            message_history=articles
-        )
-        print("********************************************result")
-        print(result)
-        return result.output
+    await mistral_limiter.acquire()
 
-    except Exception as e:
-        raise RuntimeError(
-            f"Impossible de réaliser la revue de presse à partir de la conversation : {e}"
-        ) from e
+    result = await revues_agent.run(
+        prompt,
+        message_history=articles
+    )
+    print("********************************************result")
+    print(result)
+    return result.output

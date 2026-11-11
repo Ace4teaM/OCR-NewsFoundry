@@ -8,12 +8,12 @@ import { MoveLeft } from "lucide-react";
 import styles from "./page.module.css";
 
 export default function Component() {
-  const { createRevue, selectedItem, contentView, setContentView } = usePageContext();
+  const { createRevue, selectedItem, contentView, setContentView, createChat } = usePageContext();
 
   return (
     selectedItem === null ? (
     <div className={styles.revuesContent}>
-        <Button style={contentView === "chat" ? "primary" : "secondary"} icon={Message} onClick={(e) => setContentView("chat")}>Chat</Button>
+        <Button style={contentView === "chat" ? "primary" : "secondary"} icon={Message} onClick={(e) => createChat()}>Chat</Button>
         <Button style={contentView === "revues" ? "primary" : "secondary"} icon={Document} onClick={(e) => setContentView("revues")}>Revue de presse</Button>
     </div>
     ) : 

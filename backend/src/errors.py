@@ -8,7 +8,6 @@ import httpx
 
 from pydantic_ai.exceptions import ModelHTTPError, ModelAPIError, UnexpectedModelBehavior
 
-
 @dataclass
 class AppError(Exception):
     """Exception standardisée de l'application."""

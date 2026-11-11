@@ -157,36 +157,28 @@ Fonctionnement du chat et enchaînement des différentes étapes nécessaires au
 
 ```mermaid
 flowchart TD
-    A[[Message utilisateur]]
-    A --> B{Nouveau Chat ?}
-    B -->|OUI| C(Classification\nmessage)
-    B -->|NON| P(Contextualisation\nmessage)
+    A[[Message utilisateur]] --> C([Classification\nmessage])
     
-    P -->|Réponse connue| Q[Réponse]
+    C -->|Réponse connue| Q1[Message] --> Chat
 
-    P -->|Recherche| R[Réponse]
-    R -->V{Période ?}
-    V -->|OUI| W[Récupération News]
-    W -->Y(Synthétiser News)
-    Y -->YY[Réponse]
-    V -->|NON| X[Demande précision]
-
-    P -->|ReSynthétiser| S[Récupération contexte]
-    S --> SS(Synthétiser contexte)
-    SS -->SSS[Réponse]
-
-    P -->|Clarifier| T[Réponse]
-
-    P -->|Fin de conversation| U[Fin]
-
-    C -->|Recherche actualité| I{Période ?}
-    C -->|Question générale| F(Prompt LLM)
-    F -->O[Réponse]
-    C -->|Hors sujet| G[Réponse]
-    I -->|NON| K[Demande précision]
-    I -->|OUI| L[Récupération News]
-    L --> M(Synthétiser News)
-    M -->N[Réponse]
+    C -->|Recherche actualité| Q2{Période ?}
+    Q2 -->|OUI| W[Récupération News] --> Y([Synthétiser News]) --> Chat[Création du chat si nécessaire]
+    Q2 -->|NON| X([Recherche News]) --> Chat
+    Chat --> Save1[archive le prompt] --> Save2[archive la réponse] --> Response[[chat]] --> Z
+    
+    C -->|ReSynthétiser| Q3([Synthétiser Conversation]) --> Chat
+    
+    C -->|Clarifier| Q4[Question] --> Chat
+    
+    C -->|Fin de conversation| Q5[Message] --> Message[[Message]] --> Z
+    
+    C -->|Hors sujet| Q7[Message] --> Message
+    
+    C -->|Question générale| Q6([Prompt LLM]) --> O[Message] --> Chat
+    
+    C -->|génèrer une revue de presse| Q8{chat ?}
+    Q8 -->|NON| MB([Synthétiser Conversation]) --> Revue
+    Q8 -->|OUI| MC([Synthétiser Actualités]) --> Revue[[revue]] --> Z[Result]
 ```
 
 ## Proxy

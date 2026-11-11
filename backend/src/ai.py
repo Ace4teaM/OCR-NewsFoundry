@@ -74,7 +74,7 @@ model = MistralModel(
     provider=MistralProvider(
         api_key=os.environ["MISTRAL_API_KEY"],
         http_client=http_client
-    ),
+    )
 )
 
 # ***************************************************************

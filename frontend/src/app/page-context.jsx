@@ -55,6 +55,38 @@ export function PageProvider({ children }) {
             () => refreshRevue())
     };
 
+    const refreshChats = (chatId) => {
+        async function fetchChats() {
+            try {
+                const result = await fetchApi(`/chats`);
+
+                if(result.success == false)
+                    throw new Error(result.message);
+
+                setItems(result.data);
+                setSelectedItem(result.data.find(item => item.id === chatId));
+                setContentView("chat");
+            } catch (error) {
+                setError(error.message);
+            }
+        }
+
+        fetchChats();
+    };
+
+    const createChat = async () => {
+        try {
+            const result = await postApi(`/chats`, {title: "Nouvelle discussion"});
+
+            if(result.success == false)
+                throw new Error(result.message);
+
+            refreshChats(result.data.id);
+        } catch (error) {
+            setError(error.message);
+        }
+    };
+
     const login = () => {
         router.replace("/login", { scroll: false });
     };
@@ -101,7 +133,7 @@ export function PageProvider({ children }) {
         fetchChats();
     }, [user]);
 
-    // charge les revues du chat sélectionné
+    // charge les revues
     useEffect(() => {
         // l'utilisateur doit etre loggé
         if (!user){
@@ -168,6 +200,8 @@ export function PageProvider({ children }) {
                 
                 if(result.success == false)
                     throw new Error(result.message);
+
+                console.log("messages", JSON.parse(result.data.messages))
                 
                 setMessages(JSON.parse(result.data.messages));
                 setContentView("chat");
@@ -181,7 +215,7 @@ export function PageProvider({ children }) {
 
     return (
         <PageContext.Provider
-            value={{ selectedItem, setSelectedItem, items, setItems, messages, setMessages, revues, setRevues, contentView, setContentView, logoutAction: logout, loginAction: login, createRevue }}
+            value={{ selectedItem, setSelectedItem, items, setItems, messages, setMessages, revues, setRevues, contentView, setContentView, logoutAction: logout, loginAction: login, createRevue, refreshRevue, createChat, refreshChats }}
         >
             {children}
         </PageContext.Provider>

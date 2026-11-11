@@ -1,6 +1,8 @@
 from pydantic_ai import Agent
 from ai import model
 
+from rate_limiter import mistral_limiter
+
 synthesis_agent = Agent(
     model,
     output_type=str,
@@ -71,6 +73,8 @@ ARTICLES DISPONIBLES :
 
 Produis une synthèse répondant à la demande initiale.
 """
+
+    await mistral_limiter.acquire()
 
     result = await synthesis_agent.run(prompt)
     return result.output.strip()

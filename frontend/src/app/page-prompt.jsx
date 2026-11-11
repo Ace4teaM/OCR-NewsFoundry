@@ -16,7 +16,7 @@ export default function Component() {
 
   const formRef = useRef(null);
 
-  const { selectedItem, setSelectedItem, setItems, messages, setMessages } = usePageContext();
+  const { selectedItem, setSelectedItem, setItems, setRevues, setContentView, messages, setMessages } = usePageContext();
   const { setError } = useAppContext();
 
   const [ prompt, setPrompt ] = useState("")
@@ -31,19 +31,17 @@ export default function Component() {
   useEffect(()=>{
     if(post.hasError == true)
     {
-        if(post.result?.data?.response)
+        if(post.result?.data?.erreur)
         {
             // ajoute la réponse à la liste des messages existants
             
-            const newMessages = [...messages];
-
-            newMessages.push({
+            const newMessage = {
                 date: new Date().toISOString(),
-                message: post.result?.data?.response,
+                message: post.result?.data?.erreur,
                 type: "error"
-            });
+            };
 
-            setMessages(newMessages);
+            setMessages(prev => [...prev, newMessage]);
         }
 
         setError(post.result.message);
@@ -53,25 +51,38 @@ export default function Component() {
   useEffect(()=>{
     if(post.hasSuccess == true)
     {
-        if(!selectedItem)
-        {
-            // charge la nouvelle discussion
-            const newItem = post.result?.data;
-            setItems(prev => [...prev, newItem]);
-            setSelectedItem(newItem);
-        }
-        else{
-            // ajoute la réponse à la liste des messages existants
-            
-            const newMessages = [...messages];
+        const data = post.result?.data;
 
-            newMessages.push({
+        // charge une nouvelle discussion
+        if(!selectedItem && data?.chat)
+        {
+            console.log("Adding new chat")
+            const newChat = data?.chat;
+            setItems(prev => [...prev, newChat]);
+            setSelectedItem(newChat);
+        }
+        
+        // charge une revue de presse
+        if(data?.revue)
+        {
+            console.log("Adding new revue")
+            const newRevue = data?.revue;
+            setRevues(prev => [...prev, newRevue]);
+            setSelectedItem(null);
+            setContentView("revues");
+        }
+
+        // ajoute la réponse à la discussion existantes
+        if(selectedItem && data?.response)
+        {       
+            console.log("Adding new message to existing chat")     
+            const newMessage = {
                 date: new Date().toISOString(),
                 message: post.result?.data?.response,
                 type: "assistant"
-            });
+            };
 
-            setMessages(newMessages);
+            setMessages(prev => [...prev, newMessage]);
         }
          
         setPrompt("");
@@ -92,23 +103,22 @@ export default function Component() {
     if(!selectedItem)
     {
         setPostRequest({
-            url: `/chats`,
-            data: { title: "Nouvelle discussion", message: prompt }
+            url: `/prompt`,
+            data: { message: prompt }
         });
     }
+    // discussion existante
     else
     {
         // place le message dans la pile en attendant la réponse du serveur...
 
-        const newMessages = [...messages];
-
-        newMessages.push({
+        const newMessage = {
             date: new Date().toISOString(),
             message: prompt,
             type: "user"
-        });
+        };
 
-        setMessages(newMessages);
+        setMessages(prev => [...prev, newMessage]);
 
         setPostRequest({
             url: `/chats/${selectedItem?.id}/messages`,

@@ -1,10 +1,11 @@
-from datetime import date
+from datetime import date, datetime
 from pydantic import BaseModel, Field
-from pydantic_ai import Agent, capture_run_messages
+from pydantic_ai import Agent, RunContext, capture_run_messages
+from dataclasses import dataclass, field
 
 from ai import model
 
-from worldnews import wn_get_news, wn_receive_news, wn_resume_news
+from worldnews import Article, wn_get_news, wn_receive_news, wn_resume_news
 from datetime import date, timedelta
 
 from tenacity import (
@@ -14,56 +15,28 @@ from tenacity import (
     wait_exponential,
 )
 
-class ResearchPlan(BaseModel):
-    subject: str = Field(
-        description="Sujet principal de la demande.",
-        min_length=16
-    )
+from rate_limiter import mistral_limiter
 
-    start_date: date | None = None
-    end_date: date | None = None
-    category: str | None = None
-    requires_clarification: bool = False
-    clarification_question: str | None = None
+class ResearchResult(BaseModel):
+    subject: str
+    articles: list[Article]
 
+@dataclass
+class ResearchDeps:
+    subject: str
+    articles: dict[str, Article] = field(default_factory=dict)
 
-research_planner_agent = Agent(
-    model,
-    output_type=ResearchPlan,
-    instructions="""
-    Tu es chargé de préparer les paramètres d'une recherche d'actualités.
+    def add_articles(self, news: dict) -> None:
+        """Ajoute les articles retournés par World News API."""
+        for item in news.get("news", []):
+            article = Article.model_validate(item)
+            self.articles[str(article.id)] = article
 
-    À partir du contexte de conversation :
-    - Identifie le sujet de la recherche.
-    - Identifie la date de début et la date de fin.
-    - Identifie éventuellement une catégorie.
-    - Si la période est absente ou ambiguë, demande une clarification.
-    - N'inventes jamais de dates.
-
-    La date du jour est fournie dans le prompt.
-    """
-)
-
-
-async def prepare_research(
-    conversation_context: str,
-) -> ResearchPlan:
-
-    prompt = f"""
-    Date du jour : {date.today().isoformat()}
-
-    Contexte de conversation :
-    {conversation_context}
-
-    Prépare les paramètres de recherche.
-    """
-
-    result = await research_planner_agent.run(prompt)
-
-    return result.output
 
 research_agent = Agent(
     model,
+    deps_type=ResearchDeps,
+    output_type=ResearchResult,
     instructions="""
     Tu es chargé de rechercher des actualités.
 
@@ -78,17 +51,17 @@ research_agent = Agent(
     """
 )
 
-
 # reraise=True, renvoie l'exception rencontré (sinon RetryError)
-@research_agent.tool_plain
+@research_agent.tool
 @retry(
     stop=stop_after_attempt(2),
     reraise=True,
 )
 async def search_news(
+    ctx: RunContext[ResearchDeps],
     subject: str,
-    max_results: int = 10
-    ) -> str:
+    max_results: int = 10,
+    ) -> dict:
     """
     Recherche des actualités sur un sujet donné.
 
@@ -97,32 +70,33 @@ async def search_news(
         max_results: Nombre maximum d'articles à récupérer.
     """
 
-    start_date = date.today()
-    end_date = date.today() - timedelta(days=29) # le plan gratuit ne propose que 30 jours de recherche antérieurs
+    start_date = date.today() - timedelta(days=29) # le plan gratuit ne propose que 30 jours de recherche antérieurs
+    end_date = date.today()
 
     print("------------------------------------------------------------------")
     print(f"Recherche des actualités pour le sujet : {subject}, du {start_date} au {end_date}, max_results = {max_results}")
     print(f"Dates utilisées pour la recherche : du {start_date} au {end_date}")
     print("------------------------------------------------------------------")
 
-    try:
-        news = wn_receive_news(start_date, end_date, subject, max=max_results)
-        news_summary = wn_resume_news(news)
-        return news_summary
-    except Exception as e:
-        print(str(e))
-        return "<Error>impossible d'obtenir les actualités</Error>"
+    news = await wn_receive_news(start_date, end_date, subject, max=max_results)
+
+    #alimente le contexte avec les articles récupérés
+    if news and news.get("available", 0) > 0:
+        ctx.deps.add_articles(news)
+
+    return news
 
 
 # reraise=True, renvoie l'exception rencontré (sinon RetryError)
-@research_agent.tool_plain
+@research_agent.tool
 @retry(
     stop=stop_after_attempt(2),
     reraise=True, 
 )
 async def get_news(
+    ctx: RunContext[ResearchDeps],
     ids: str
-    ) -> str:
+    ) -> dict:
     """
     Obtient un ou plusieurs articles d'actualités à partir de leurs identifiants.
 
@@ -134,18 +108,19 @@ async def get_news(
     print(f"Recherche de l'article avec l'id : {ids}")
     print("------------------------------------------------------------------")
 
-    try:
-        news = wn_get_news(ids)
-        news_summary = wn_resume_news(news)
-        return news_summary
-    except Exception as e:
-        print(str(e))
-        return f"<Error>impossible d'obtenir les actualités avec les ids {ids}</Error>"
+    news =  await wn_get_news(ids)
 
+    #alimente le contexte avec les articles récupérés
+    if news and news.get("available", 0) > 0:
+        ctx.deps.add_articles(news)
+
+    return news
 
 async def research(
     message: str,
-) -> str:
+) -> ResearchResult:
+
+    deps = ResearchDeps(subject=message)
 
     prompt = f"""
     Date du jour : {date.today().isoformat()}
@@ -154,14 +129,12 @@ async def research(
     {message}
     """
 
-    try:
-        with capture_run_messages() as messages:
-            result = await research_agent.run(prompt)
-            return result.output
+    result = await research_agent.run(
+        prompt,
+        deps=deps
+    )
 
-    except Exception as e:
-        print(f"[AGENT MESSAGES]:")
-        for message in messages:
-            print(message)
-
-        raise e
+    return ResearchResult(
+        subject=deps.subject,
+        articles=list(deps.articles.values())
+    )
