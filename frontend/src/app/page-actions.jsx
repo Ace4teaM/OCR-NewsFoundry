@@ -11,12 +11,7 @@ export default function Component() {
   const { createRevue, selectedItem, contentView, setContentView, createChat } = usePageContext();
 
   return (
-    selectedItem === null ? (
-    <div className={styles.revuesContent}>
-        <Button style={contentView === "chat" ? "primary" : "secondary"} icon={Message} onClick={(e) => createChat()}>Chat</Button>
-        <Button style={contentView === "revues" ? "primary" : "secondary"} icon={Document} onClick={(e) => setContentView("revues")}>Revue de presse</Button>
-    </div>
-    ) : 
+    contentView === "chat" && selectedItem !== null ?
     (
     <div className={styles.chatContent}>
         <div className={styles.back}>
@@ -27,6 +22,11 @@ export default function Component() {
           </a>
         </div>
         <Button style="primary" icon={Document} onClick={(e) => createRevue()}>Générer une revue de presse</Button>
+    </div>
+    ) :  (
+    <div className={styles.revuesContent}>
+        <Button style={contentView === "chat" ? "primary" : "secondary"} icon={Message} onClick={(e) => createChat()}>Nouveau Chat</Button>
+        <Button style={contentView === "revues" ? "primary" : "secondary"} icon={Document} onClick={(e) => setContentView("revues")}>Revue de presse</Button>
     </div>
     )
   );

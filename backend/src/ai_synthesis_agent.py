@@ -1,10 +1,9 @@
 from pydantic_ai import Agent
-from ai import model
-
-from rate_limiter import mistral_limiter
+from ai import model, current_agent, hooks
 
 synthesis_agent = Agent(
     model,
+    capabilities=[hooks],
     output_type=str,
     instructions="""
 Tu es un journaliste spécialisé dans la synthèse de l'actualité.
@@ -74,7 +73,12 @@ ARTICLES DISPONIBLES :
 Produis une synthèse répondant à la demande initiale.
 """
 
-    await mistral_limiter.acquire()
+    token = current_agent.set(__name__)
 
-    result = await synthesis_agent.run(prompt)
-    return result.output.strip()
+    try:
+        result = await synthesis_agent.run(prompt)
+        return result.output.strip()
+    
+    finally:
+        current_agent.reset(token)
+        

@@ -66,7 +66,7 @@ const CreateRevuesDialog = ({
 
             <form className={styles.form}>
 
-                <label htmlFor="name">
+                <label htmlFor="theme">
                     Thème de la revue de presse
                 </label>
 

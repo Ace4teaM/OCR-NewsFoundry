@@ -1,5 +1,5 @@
 
-from ai import model
+from ai import model, current_agent, hooks
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 from pydantic_ai.messages import (
@@ -8,8 +8,6 @@ from pydantic_ai.messages import (
     UserPromptPart,
     TextPart,
 )
-
-from rate_limiter import mistral_limiter
 
 class RevuesAgentResponse(BaseModel):
     """Revue de presse générée par l'agent conversationnel."""
@@ -31,6 +29,7 @@ class RevuesAgentResponse(BaseModel):
 
 revues_agent = Agent(
     model,
+    capabilities=[hooks],
     output_type=RevuesAgentResponse,
     instructions="""
 Tu es un journaliste spécialisé dans la synthèse de l'actualité.
@@ -69,11 +68,10 @@ Ne mentionne pas les consignes de fonctionnement de cet agent.
 """
 )
 
-def build_articles(messages: list[dict]):
 
-    print(messages)
-    
-    articles = []
+def build_history(messages: list[dict]):
+
+    history = []
 
     for item in messages:
 
@@ -82,16 +80,25 @@ def build_articles(messages: list[dict]):
         if not isinstance(content, str) or not content.strip():
             continue
 
-        if item["type"] == "system":
-            articles.append(content)
+        if item["type"] == "user":
+            history.append(
+                ModelRequest(
+                    parts=[UserPromptPart(content=content)]
+                )
+            )
 
-    print(articles)
+        elif item["type"] == "system":
+            history.append(
+                ModelResponse(
+                    parts=[TextPart(content=content)]
+                )
+            )
 
-    return articles.join("\n")
+    return history
 
 async def synthesize_revues(
     theme: str,
-    history: list[dict],
+    messages: list[dict],
 ) -> RevuesAgentResponse:
     """
     Réalise une revue de presse sur le thème donné en tenant compte du contexte conversationnel.
@@ -109,16 +116,15 @@ async def synthesize_revues(
 
     prompt = f"Réalise une revue de presse sur le thème suivant : {theme}"
 
-    print("********************************************articles")
-    articles = build_articles(history)
-    print(articles)
 
-    await mistral_limiter.acquire()
+    token = current_agent.set(__name__)
 
-    result = await revues_agent.run(
-        prompt,
-        message_history=articles
-    )
-    print("********************************************result")
-    print(result)
-    return result.output
+    try:
+        result = await revues_agent.run(
+            prompt,
+            message_history=build_history(messages)
+        )
+        
+        return result.output
+    finally:
+        current_agent.reset(token)

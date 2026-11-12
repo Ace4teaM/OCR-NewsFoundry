@@ -34,17 +34,21 @@ export default function Component() {
         if(post.result?.data?.erreur)
         {
             // ajoute la réponse à la liste des messages existants
-            
-            const newMessage = {
-                date: new Date().toISOString(),
-                message: post.result?.data?.erreur,
-                type: "error"
-            };
+            if(selectedItem)
+            {
+                const newMessage = {
+                    date: new Date().toISOString(),
+                    message: post.result?.data?.erreur,
+                    type: "error"
+                };
 
-            setMessages(prev => [...prev, newMessage]);
+                setMessages(prev => [...prev, newMessage]);
+            }
+            else
+                setError(post.result?.data?.erreur);
         }
-
-        setError(post.result.message);
+        else
+            setError(post.result.message);
     }
   }, [post.hasError])
 

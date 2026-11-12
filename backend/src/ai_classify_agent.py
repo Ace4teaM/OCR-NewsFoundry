@@ -10,12 +10,8 @@ from pydantic_ai.messages import (
     TextPart,
 )
 
-from ai import model
+from ai import model, current_agent, hooks
 from datetime import date, timedelta
-
-
-from rate_limiter import mistral_limiter
-
 
 class Period(str, Enum):
     """Périodes relatives possibles."""
@@ -88,6 +84,7 @@ class UserRequest(BaseModel):
 
 qualification_agent = Agent(
     model,
+    capabilities=[hooks],
     output_type=UserRequest,
     instructions="""
 Tu es un agent chargé de qualifier les demandes des utilisateurs
@@ -217,15 +214,17 @@ async def classify_user_request(
         Qualification structurée de la demande.
     """
 
-    await mistral_limiter.acquire()
+    token = current_agent.set(__name__)
 
-    result = await qualification_agent.run(
-        message,
-        message_history=build_history(messages)
-    )
+    try:
+        result = await qualification_agent.run(
+            message,
+            message_history=build_history(messages)
+        )
 
-    return result.output
-
+        return result.output
+    finally:
+        current_agent.reset(token)
 
 def period_to_dates(
     period: Period,

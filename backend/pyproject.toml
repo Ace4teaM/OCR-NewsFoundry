@@ -12,7 +12,9 @@ dependencies = [
     "bcrypt>=4.3.0",
     "pyjwt>=2.15.1",
     "pydantic-ai>=2.27.1",
-    "pydantic-ai-slim[mistral,retries]>=2.27.1",
+    "pydantic-ai-slim[google,mistral,retries]>=2.27.1",
+    "httpx2>=2.16.0",
+    "psycopg[binary]>=3.3.9",
 ]
 
 [dependency-groups]

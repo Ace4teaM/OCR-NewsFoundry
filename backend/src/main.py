@@ -4,9 +4,12 @@ import json
 from datetime import date, datetime, timedelta, timezone
 from typing import Annotated
 from database import init_db, engine
-from fastapi import FastAPI, HTTPException, status, Response, Cookie, Depends
+
+from fastapi import FastAPI, HTTPException, status, Response, Cookie, Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from sqlmodel import Session, insert, select
 import bcrypt
@@ -22,10 +25,50 @@ from ai_revues_agent import synthesize_revues
 from worldnews import Article, wn_receive_news, wn_resume_news
 from errors import AppError, handle_api_error
 import sys
-import traceback
 from result import Result
+import time
+
+import logging
+from logger import get_logger
+logger = get_logger("http")
+
+import traceback
 
 app = FastAPI()
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+
+    start = time.perf_counter()
+
+    try:
+        response = await call_next(request)
+
+        duration = (time.perf_counter() - start) * 1000
+
+        logger.log(
+            logging.ERROR if response.status_code >= 400 else logging.INFO,
+            "%s %s | %s | %.2f ms",
+            request.method,
+            request.url.path,
+            response.status_code,
+            duration
+        )
+
+        return response
+
+    except Exception:
+        duration = (time.perf_counter() - start) * 1000
+
+        logger.exception(
+            "%s %s | EXCEPTION | %.2f ms",
+            request.method,
+            request.url.path,
+            duration
+        )
+
+        raise
 
 app.add_middleware(
     CORSMiddleware,
@@ -71,7 +114,6 @@ class ResponseApi():
     success: bool
     message: str
     data: dict | None = None
-
 
 
 def create_access_token(user_id: int) -> str:
@@ -295,7 +337,7 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
                 if chat:
                     synthese = await synthesize_revues(
                         theme=context.subject,
-                        history=messages
+                        messages=messages
                     )
 
                     if not synthese.sufficient:
@@ -309,8 +351,19 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
                         message = "Revue de presse générée avec succès."
                 # si pas de chat, on recherche des actualités
                 else:
-                    resume = await search_news(context.subject, 10)
-                    print("resume",resume)
+                    # recherche des résultats
+                    results = await research(context.subject)
+
+                    news_summary = wn_resume_news(results.articles)
+
+                    messages.append({
+                        "date": datetime.now().isoformat(),
+                        "message": news_summary,
+                        "type": "system"
+                    })
+                    
+                    resume = await synthesize_news(messages, message)
+                    
                     revue = Revue(
                         user_id=current_user.id,
                         theme=context.subject,
@@ -321,29 +374,28 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
             case _:
                 raise AppError("Je ne parviens pas à déterminer le sens de votre question. Pouvez vous reformuler votre question ?")
 
-    except AppError as e:
-        print("EXCEPTION:", e)
-        app_error = handle_api_error(e)
-        return Result(
-            success=False,
-            message=e.message,
-            data={
-                "prompt": prompt,
-                "erreur": str(e)
-            }
-        )
     except Exception as e:
-        print("EXCEPTION:", e)
+        traceback.print_exc()
+        
         app_error = handle_api_error(e)
         app_error.print_debug()
+        
+        logger.error(
+            "%s | %s | %s",
+            str(e),
+            app_error.message,
+            app_error.details
+        )
+
         return Result(
             success=False,
             message=app_error.message,
             data={
                 "prompt": prompt,
-                "erreur": str(e)
+                "erreur": str(app_error)
             }
         )
+
 
     if response and chat:
 
@@ -669,7 +721,7 @@ async def create_revue(
 
         revue = await synthesize_revues(
             theme=revue_data.theme,
-            history=json.loads(chat.messages) if chat.messages else []
+            messages=json.loads(chat.messages) if chat.messages else []
         )
 
         if not revue.sufficient:

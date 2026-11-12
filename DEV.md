@@ -79,7 +79,10 @@ flowchart TB
 | `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | Optionnel. Temps avant expiration du Token de session (30 par défaut) |
 | `COOKIE_SECURE`                   | Active ou désactive l'attribut `Secure` des cookies HTTP. Lorsqu'il est activé, les cookies sont transmis uniquement via HTTPS (généralement en production). |
 | `MISTRAL_API_KEY`                 | Clé API permettant d'accéder aux modèles d'intelligence artificielle de Mistral. |
+| `QUOTA_REQUESTS`                  | Optionnel, Quota à appliquer lors des appels au LLM (pour éviter les requêtes HTTP 429). Nombre de requêtes max par période (défaut 1) |
+| `QUOTA_PERIOD`                    | Optionnel, Quota à appliquer lors des appels au LLM (pour éviter les requêtes HTTP 429). Durée de la période en secondes (défaut 34) |
 | `WORLDNEWS_API_KEY`               | Clé API permettant d'accéder aux services de l'API World News. |
+| `WORLDNEWS_SIMULATE`              | Optionnel, Permet de simuler les résultats de l'API World News. (défaut "false") |
 
 ## Production
 
@@ -177,8 +180,8 @@ flowchart TD
     C -->|Question générale| Q6([Prompt LLM]) --> O[Message] --> Chat
     
     C -->|génèrer une revue de presse| Q8{chat ?}
-    Q8 -->|NON| MB([Synthétiser Conversation]) --> Revue
-    Q8 -->|OUI| MC([Synthétiser Actualités]) --> Revue[[revue]] --> Z[Result]
+    Q8 -->|OUI| MB([Synthétiser Conversation]) --> Revue
+    Q8 -->|NON| MCC([Recherche News]) --> MC([Synthétiser Actualités]) --> Revue[[revue]] --> Z[Result]
 ```
 
 ## Proxy
@@ -201,10 +204,47 @@ L'utilisateur à la possibilité ensuite de visualiser l'ensemble des revues de 
 - Un mot de passe incorrect ne permet pas de se connecter
 
 
-## Executer les tests
+## Exécuter les tests
 
 ```bash
 uv run --env-file .env pytest -v
 ```
 
-# 
+# API et Limitations
+
+### Fournisseurs
+
+Le projet implémente les API suivantes:
+
+* Mistral
+* Gemini
+* WorldNews
+
+### Limites
+
+La plupart des API propose un service gratuit mais limité:
+
+| API       | Limitation                   | Consultation                                |
+| --------- | ---------------------------- | ------------------------------------------- |
+| worldnews | Requêtes par jour (max 50)   | https://worldnewsapi.com/console/#Dashboard |
+| mistral   | Requêtes par minute (max 2)  | https://admin.mistral.ai/organization/usage |
+| gemini    | Requêtes par minute (max 10) | https://aistudio.google.com/rate-limit      |
+
+En cas de dépassement une erreur est affichée à l'utilisateur et des logs sont produits.
+
+# Erreurs, Logs et Débogage
+
+Améliorer la traçabilité des échanges entre **Pydantic AI** et **l'API LLM** afin de faciliter le diagnostic des erreurs HTTP, notamment les erreurs `429 Too Many Requests`.
+
+## Erreurs
+
+Le projet implémente une gestion centralisé des erreurs pour le `backend` et `frontend`
+
+## Logs
+
+Le script `backend/src/logger.py` implémente une instance de `logger` pour journaliser le débogage.
+
+Les logs sont inscrit dans le dossier `logs/` et contient les appels **HTTP** entre le **HTTPX / Pydantic** et le **l'API du LLM**.
+
+Ce journal est particulièrement utile pour identifier les causes d'erreur lié aux limites de trafic du LLM Mistral.
+

@@ -35,6 +35,7 @@ export function PageProvider({ children }) {
                 if(result.success == false)
                     throw new Error(result.message);
 
+                setSelectedItem(null);
                 setRevues(result.data);
                 setContentView("revues");
             } catch (error) {
@@ -201,8 +202,6 @@ export function PageProvider({ children }) {
                 if(result.success == false)
                     throw new Error(result.message);
 
-                console.log("messages", JSON.parse(result.data.messages))
-                
                 setMessages(JSON.parse(result.data.messages));
                 setContentView("chat");
             } catch (error) {

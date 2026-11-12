@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from typing import Any
 
 import inspect
-import traceback
 import httpx
 
 from pydantic_ai.exceptions import ModelHTTPError, ModelAPIError, UnexpectedModelBehavior
@@ -21,6 +20,7 @@ class AppError(Exception):
         provider: str | None = None,
         status_code: int | None = None,
         original_exception: Exception | None = None,
+        type: str | None = None,
     ):
         super().__init__(message)
 
@@ -31,45 +31,35 @@ class AppError(Exception):
         self.provider = provider
         self.status_code = status_code
         self.original_exception = original_exception
+        self.type = type
 
     def print_debug(self):
-        print("AppError Debug Info:")
-        print(f"Message    : {self.message}")
-        print(f"Details    : {self.details}")
-        print(f"Code       : {self.code}")
-        print(f"Function   : {self.function}")
-        print(f"Provider   : {self.provider}")
-        print(f"Status Code: {self.status_code}")
-        print(f"{type(self.original_exception).__name__}: {self.original_exception}")
+        try:
+            print("AppError Debug Info:")
+            print(f"Message    : {self.message}")
+            print(f"Details    : {self.details}")
+            print(f"Code       : {self.code}")
+            print(f"Function   : {self.function}")
+            print(f"Provider   : {self.provider}")
+            print(f"Status Code: {self.status_code}")
+            print(f"Type       : {self.type}")
+            print(f"Origine    : {self.original_exception}")
+                
+            e = self.original_exception
             
-        e = self.original_exception
-        
-        # Erreur HTTP remontée par Pydantic AI
-        if isinstance(self.original_exception, ModelHTTPError):
-            print("\n[LLM HTTP ERROR]")
-            print(f"Type       : {type(e).__name__}")
-            print(f"Message    : {e}")
-            print(f"Status     : {e.status_code}")
-            print(f"Body       : {e.body}")
-            print(f"Code       : {e.provider_error_code}")
-            print(f"Error type : {e.provider_error_type}")
-            print(f"Headers    : {e.headers}")
-            print(f"Retry after: {e.retry_after}")
-
-        # Erreur API remontée par Pydantic AI
-        elif isinstance(e, ModelAPIError):
-            print("\n[LLM API ERROR]")
-            print(f"Type    : {type(e).__name__}")
-            print(f"Message : {e}")
-            print(f"Body    : {getattr(e, 'body', None)}")
-
-        if e.__cause__:
-            print("\n[CAUSE ORIGINALE]")
-            traceback.print_exception(e.__cause__)
+            print("Exception détails:")
+            print("----------------------------------------------")
+            for name in dir(e):
+                if not name.startswith("_"):
+                    value = getattr(e, name, None)
+                    if not callable(value):
+                        print(f"{name} = {value}")
+            print("----------------------------------------------")
+        except Exception as ex:
+            print(f"Erreur lors de l'affichage des détails de l'exception: {ex}")
 
     def __str__(self):
-        return f"{self.message}\n\nDétails:{self.details}"
-
+        return f"{self.details or self.message}"
 
 
 def handle_api_error(e: Exception, message: str | None = None) -> AppError:
@@ -100,16 +90,12 @@ def handle_api_error(e: Exception, message: str | None = None) -> AppError:
 
     details = None
 
+    # Problème de connexion
+    if isinstance(e, AppError):
+        return e
+
     # Erreur HTTP remontée par Pydantic AI
-    if isinstance(e, ModelHTTPError):
-
-        url = str(e.request.url)
-        
-        if "api.mistral.ai" in url:
-            provider = "mistral"
-        elif "api.worldnewsapi.com" in url:
-            provider = "world news"
-
+    elif isinstance(e, ModelHTTPError):
         status_code = e.status_code
 
         body = e.body
@@ -136,13 +122,38 @@ def handle_api_error(e: Exception, message: str | None = None) -> AppError:
 
     # Erreur remontée par un outil
     elif isinstance(e, UnexpectedModelBehavior):
-
         return AppError(
             message="Une erreur est survenue pendant l'exécution d'un outil.",
             code="TOOL_EXECUTION_ERROR",
             original_exception=e,
         )
     
+    # Erreur HTTPX
+    elif isinstance(e, httpx.HTTPStatusError):
+        url = str(e.request.url)
+        print("url", url)
+        
+        if "api.mistral.ai" in url:
+            provider = "Mistral"
+        elif "generativelanguage.googleapis.com" in url:
+            provider = "Gemini"
+        elif "api.worldnewsapi.com" in url:
+            provider = "WorldNews"
+
+        status_code = e.response.status_code
+
+        if status_code == 429:
+            code = "RATE_LIMIT"
+            details = f"Le service {provider} est temporairement indisponible en raison d'une limite de requêtes."
+
+        elif status_code == 402:
+            code = "PAYMENT_REQUIRED"
+            details = f"Le service {provider} a refusé la requête : le quota disponible est épuisé ou le forfait ne permet pas cette opération."
+
+        elif status_code in (401, 403):
+            code = "AUTHENTICATION_ERROR"
+            details = f"L'authentification auprès du service {provider} a échoué."
+
     # Erreur HTTPX, message de l'api world news ?
     elif isinstance(e, httpx.HTTPError):
         try:
@@ -151,32 +162,6 @@ def handle_api_error(e: Exception, message: str | None = None) -> AppError:
         except Exception:
             pass
             
-    # Erreur HTTPX
-    elif isinstance(e, httpx.HTTPStatusError):
-
-        url = str(e.request.url)
-        
-        if "api.mistral.ai" in url:
-            provider = "mistral"
-        elif "api.worldnewsapi.com" in url:
-            provider = "world news"
-
-        status_code = e.response.status_code
-
-        try:
-            body = e.response.json()
-            details = body.get("message", details)
-        except Exception:
-            pass
-
-        if status_code == 429:
-            code = "RATE_LIMIT"
-            details = "Le service est temporairement indisponible en raison d'une limite de requêtes."
-
-        elif status_code in (401, 403):
-            code = "AUTHENTICATION_ERROR"
-            details = "L'authentification auprès du service a échoué."
-
     # Timeout
     elif isinstance(e, httpx.TimeoutException):
         code = "API_TIMEOUT"
@@ -195,4 +180,5 @@ def handle_api_error(e: Exception, message: str | None = None) -> AppError:
         provider=provider,
         status_code=status_code,
         original_exception=e,
+        type=f"{type(e).__module__}.{type(e).__qualname__}"
     )
