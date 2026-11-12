@@ -96,14 +96,12 @@ export function AppProvider({ children }) {
       <ErrorNotification
           message={error}
           onClose={() => setError(null)}
-          duration={5000}
       />
       )}
       {notification && (
       <InfoNotification
           message={notification}
           onClose={() => setNotification(null)}
-          duration={5000}
       />
       )}
     </AppContext.Provider>

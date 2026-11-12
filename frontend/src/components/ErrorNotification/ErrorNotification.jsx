@@ -15,7 +15,7 @@ import styles from "./ErrorNotification.module.css";
 export default function ErrorNotification({
   message,
   onClose,
-  duration = 5000,
+  duration = 60000,
 }) {
   useEffect(() => {
     if (!message) {
