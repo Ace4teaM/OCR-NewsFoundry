@@ -156,6 +156,7 @@ RÈGLES :
 - subject doit identifier le sujet principal lorsque celui-ci est identifiable.
 - keywords indique les mots clés pertinents pour la recherche d'actualités.
 - Ignore les mots clés trop générique comme "actualités", "information", "news" et préfére les mots clés spécifiques au sujet recherché.
+- Limite le nombre de mots clés à ceux strictement nécessaires pour identifier le sujet (maximum 3).
 - category doit identifier la catégorie principale lorsque qu'elle est identifiable.
 - Une demande ambiguë doit déclencher question.
 - question doit contenir une seule question précise.

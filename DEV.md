@@ -166,7 +166,7 @@ flowchart TD
 
     C -->|Recherche actualité| Q2{Période ?}
     Q2 -->|OUI| W[Récupération News] --> Y([Synthétiser News]) --> Chat[Création du chat si nécessaire]
-    Q2 -->|NON| X([Recherche News]) --> Chat
+    Q2 -->|NON| X([Recherche News]) --> Y
     Chat --> Save1[archive le prompt] --> Save2[archive la réponse] --> Response[[chat]] --> Z
     
     C -->|ReSynthétiser| Q3([Synthétiser Conversation]) --> Chat
@@ -247,4 +247,23 @@ Le script `backend/src/logger.py` implémente une instance de `logger` pour jour
 Les logs sont inscrit dans le dossier `logs/` et contient les appels **HTTP** entre le **HTTPX / Pydantic** et le **l'API du LLM**.
 
 Ce journal est particulièrement utile pour identifier les causes d'erreur lié aux limites de trafic du LLM Mistral.
+
+```
+2026-11-13 09:10:47.932 | INFO | ai | PYDANTIC RESPONSE | step=1
+2026-11-13 09:10:48.216 | INFO | worldnews | GET {'api-key': '***', 'language': 'fr', 'earliest-publish-date': '2026-11-13 00:00:00', 'number': '10', 'latest-publish-date': '2026-11-13 00:00:00', 'text': 'panne Microsoft Outlook'} | HTTP 200 | 281.22 ms
+2026-11-13 09:10:48.219 | INFO | ai | PYDANTIC REQUEST | step=1 | model=GoogleModel(model_name='gemini-2.5-flash-lite')
+2026-11-13 09:10:48.222 | INFO | ai | HTTP REQUEST | agent=ai_synthesis_agent | POST | https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent
+2026-11-13 09:10:50.552 | INFO | ai | HTTP RESPONSE | agent=ai_synthesis_agent | POST | https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent | status=200
+2026-11-13 09:10:50.554 | INFO | ai | PYDANTIC RESPONSE | step=1
+2026-11-13 09:10:50.570 | INFO | http | POST /chats/45/messages | 200 | 3303.07 ms
+2026-11-13 09:11:05.442 | INFO | ai | PYDANTIC REQUEST | step=1 | model=GoogleModel(model_name='gemini-2.5-flash-lite')
+2026-11-13 09:11:05.447 | INFO | ai | HTTP REQUEST | agent=ai_revues_agent | POST | https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent
+2026-11-13 09:11:07.161 | INFO | ai | HTTP RESPONSE | agent=ai_revues_agent | POST | https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent | status=200
+2026-11-13 09:11:07.163 | INFO | ai | PYDANTIC RESPONSE | step=1
+2026-11-13 09:11:07.175 | INFO | http | POST /chats/45/revues | 200 | 1744.58 ms
+2026-11-13 09:11:07.202 | INFO | http | GET /revues | 200 | 12.77 ms
+2026-11-13 09:11:10.992 | INFO | http | GET /me | 200 | 5.03 ms
+2026-11-13 09:11:11.057 | INFO | http | GET /chats | 200 | 11.55 ms
+2026-11-13 09:11:11.076 | INFO | http | GET /revues | 200 | 28.85 ms
+```
 

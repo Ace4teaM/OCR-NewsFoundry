@@ -374,7 +374,7 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
                 response = "Je ne suis pas sûr de pouvoir répondre à cette question. Veuillez poser une question sur l'actualité."
 
             case Action.END:
-                response = "Très bien, terminons la conversation."
+                response = "Très bien, terminons cette conversation."
 
             case Action.MAKE_REVIEW:
                 # chat existant ?
@@ -386,7 +386,7 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
                     )
 
                     synthese = await synthesize_revues(
-                        theme=context.subject,
+                        theme=context.subject if context.subject else "Domaine général",
                         messages=messages
                     )
 
@@ -395,7 +395,7 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
                     else:
                         revue = Revue(
                             user_id=current_user.id,
-                            theme=context.subject,
+                            theme=context.subject if context.subject else "Domaine général",
                             content=synthese.content
                         )
                         message = "Revue de presse générée avec succès."
@@ -406,6 +406,9 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
                         message="Recherche des actualités...",
                         data=None
                     )
+
+                    if not context.subject:
+                        raise AppError("Veuillez spécifier le sujet de la revue de presse")
 
                     # recherche des résultats
                     results = await research(context.subject)
