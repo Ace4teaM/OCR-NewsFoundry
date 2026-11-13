@@ -32,6 +32,8 @@ class ResearchResult(BaseModel):
 class ResearchDeps:
     subject: str
     articles: dict[str, Article] = field(default_factory=dict)
+    search_calls: int = 0
+    max_search_calls: int = 3
 
     def add_articles(self, news: dict) -> None:
         """Ajoute les articles retournés par World News API."""
@@ -48,12 +50,17 @@ research_agent = Agent(
     instructions="""
     Tu es chargé de rechercher des actualités.
 
-    Tools:
-    - Utilise l'outil `search_news` pour récupérer des actualités pertinentes à partir d'un sujet donné.
-    - Utilise l'outil `get_news` pour récupérer des articles spécifiques à partir de leurs identifiants.
+    Utilise les outils à ta disposition pour réaliser tes recherches d'actualités.
 
-    Récupére les identifiants des articles à partir de l'historique de conversation.
-    Chaque identifiant doit être utilisé avec l'outil `get_news` pour obtenir les détails de l'article.
+    Règles impératives :
+
+    1. Effectue une recherche pertinente pour répondre à la demande.
+    2. N'effectue pas plusieurs recherches identiques.
+    3. Après réception des résultats, considère la recherche comme terminée.
+    4. N'appelle pas de nouveau search_news si une recherche pertinente a déjà été effectuée.
+    5. Si aucun article n'est disponible, retourne un résultat vide.
+    6. Produis obligatoirement le résultat final après la recherche.
+
 
     La date du jour est fournie dans le prompt.
     """
@@ -68,7 +75,6 @@ research_agent = Agent(
 async def search_news(
     ctx: RunContext[ResearchDeps],
     subject: str,
-    max_results: int = 10,
     ) -> dict:
     """
     Recherche des actualités sur un sujet donné.
@@ -80,48 +86,36 @@ async def search_news(
 
     start_date = date.today() - timedelta(days=29) # le plan gratuit ne propose que 30 jours de recherche antérieurs
 
+    # limite le nombre d'appels consecutifs
+    if ctx.deps.search_calls >= ctx.deps.max_search_calls:
+        print("Nombre maximum de recherches atteint")
+        raise ValueError("Nombre maximum de recherches atteint")
+
+    ctx.deps.search_calls += 1
+
     print("------------------------------------------------------------------")
-    print(f"Recherche des actualités pour le sujet : {subject}, max_results = {max_results}")
+    print(f"Recherche des actualités pour le sujet : {subject}")
     print(f"Dates utilisées pour la recherche : à partir de {start_date}")
     print("------------------------------------------------------------------")
 
-    news = await wn_receive_news(start_date, None, subject, max=max_results)
+    news = await wn_receive_news(start_date, None, subject)
 
     #alimente le contexte avec les articles récupérés
     if news and news.get("available", 0) > 0:
         ctx.deps.add_articles(news)
 
-    return news
+    return {
+        "subject": subject,
+        "available": news.get("available", 0),
+        "articles_retrieved": len(news.get("news", [])),
+        "titles": [
+            item.get("title", "")
+            for item in news.get("news", [])
+            if item.get("title")
+        ],
+        "message": "Recherche effectuée avec succès."
+    }
 
-
-# reraise=True, renvoie l'exception rencontré (sinon RetryError)
-@research_agent.tool
-@retry(
-    stop=stop_after_attempt(2),
-    reraise=True, 
-)
-async def get_news(
-    ctx: RunContext[ResearchDeps],
-    ids: str
-    ) -> dict:
-    """
-    Obtient un ou plusieurs articles d'actualités à partir de leurs identifiants.
-
-    Args:
-        ids: Identifiants des articles à récupérer, séparés par des virgules.
-    """
-
-    print("------------------------------------------------------------------")
-    print(f"Recherche de l'article avec l'id : {ids}")
-    print("------------------------------------------------------------------")
-
-    news =  await wn_get_news(ids)
-
-    #alimente le contexte avec les articles récupérés
-    if news and news.get("available", 0) > 0:
-        ctx.deps.add_articles(news)
-
-    return news
 
 def build_history(messages: list[dict]):
 
@@ -169,7 +163,7 @@ async def research(
     try:
         result = await research_agent.run(
             prompt,
-            message_history=build_history(messages),
+            message_history=build_history(messages or []),
             deps=deps
         )
 

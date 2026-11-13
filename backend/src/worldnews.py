@@ -92,7 +92,7 @@ async def request_worldnews(
         )
         raise
 
-async def wn_receive_news(start: datetime, end: datetime = None, subject:str = None, category:str = None, max: int = 10, timeout: int = 30) -> dict:
+async def wn_receive_news(start: datetime, end: datetime = None, subject:str = None, timeout: int = 30) -> dict:
     """
     Récupère les articles de presse sur une période donnée.
 
@@ -101,7 +101,6 @@ async def wn_receive_news(start: datetime, end: datetime = None, subject:str = N
         end: Date de fin.
         subject: Sujet principal des articles.
         category: Catégorie des articles.
-        max: Nombre maximum d'articles.
         timeout: Délai d'attente pour la requête en secondes.
 
     Returns:
@@ -116,7 +115,6 @@ async def wn_receive_news(start: datetime, end: datetime = None, subject:str = N
         "api-key": WORLDNEWS_API_KEY,
         "language": "fr",
         "earliest-publish-date": formatted_start,
-        "number": max # limite le nombre d'articles recus
     }
 
     if end:
@@ -126,9 +124,6 @@ async def wn_receive_news(start: datetime, end: datetime = None, subject:str = N
     if subject:
         params["text"] = subject
         
-    #if category:
-    #    params["categories"] = category
-
     print("************************************************")
     print("World News API")
     pprint(params, indent=2)

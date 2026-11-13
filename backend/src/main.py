@@ -295,7 +295,7 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
                         "message": news_summary,
                         "type": "system"
                     })
-                # si les dates sont connues, on récupére les articles d'actualités
+                # si les dates sont connues, on récupére les articles aupres de WorldNews directement
                 else:
                     day_news = await wn_receive_news(start, end, context.subject)
 
@@ -307,8 +307,8 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
                         "type": "system"
                     })
 
-    
-                response = await synthesize_news(messages, message)
+                # synthetise uniquement le contexte en cours
+                response = await synthesize_news(messages[-1:], message)
 
             case Action.RESYNTHESIZE:
                 # interoge le LLM avec le message de l'utilisateur

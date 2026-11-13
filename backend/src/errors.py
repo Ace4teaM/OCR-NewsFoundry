@@ -108,11 +108,11 @@ def handle_api_error(e: Exception, message: str | None = None) -> AppError:
 
         if status_code == 429:
             code = "RATE_LIMIT"
-            details = "Le service est temporairement indisponible en raison d'une limite de requêtes."
+            details = f"Le service {provider} est temporairement indisponible en raison d'une limite de requêtes."
 
         elif status_code in (401, 403):
             code = "AUTHENTICATION_ERROR"
-            details = "L'authentification auprès du service a échoué."
+            details = f"L'authentification auprès du service {provider} a échoué."
 
     # Erreur API remontée par Pydantic AI
     elif isinstance(e, ModelAPIError):
@@ -171,6 +171,12 @@ def handle_api_error(e: Exception, message: str | None = None) -> AppError:
     elif isinstance(e, httpx.RequestError):
         code = "API_CONNECTION_ERROR"
         details = "Impossible de contacter le service distant."
+
+    # Problème de connexion
+    else:
+        print("Erreur non gérée :", e)
+        code = "UNKNOWN_ERROR"
+        details = str(e)
 
     return AppError(
         message=message,

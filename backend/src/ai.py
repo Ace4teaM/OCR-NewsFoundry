@@ -214,7 +214,7 @@ http_client = httpx2.AsyncClient(
 # Modèle Gemini
 
 model = GoogleModel(
-    "gemini-2.5-flash-lite",
+    "gemini-3.8-flash",
     provider=GoogleProvider(
         api_key=api_key,
         http_client=http_client
