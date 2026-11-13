@@ -183,7 +183,7 @@ def test_user_cannot_access_another_users_chat(client, user):
         id=42,
         user_id=2,
         title="Discussion privée",
-        created_at="2026-10-29",
+        created_at="2026-10-29 12:00:00",
         messages="[]",
     )
 
