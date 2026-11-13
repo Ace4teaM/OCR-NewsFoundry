@@ -448,7 +448,7 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
         return
 
 
-    if response and chat:
+    if response:
 
         messages.append({
             "date": datetime.now(timezone.utc).isoformat(),
@@ -456,11 +456,21 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
             "message": response
         })
 
-        chat.messages=json.dumps(messages)
+        # Si le chat existe, la conversation continue
+        if chat:
+            chat.messages=json.dumps(messages)
+        # sinon le chat est créé
+        else:
+            chat = Chat(
+                user_id=current_user.id,
+                title="Nouvelle discussion",
+                messages=json.dumps(messages)
+            )
 
         session.add(chat)
         session.commit()
         session.refresh(chat)
+
 
         yield Result(
             success=True,
