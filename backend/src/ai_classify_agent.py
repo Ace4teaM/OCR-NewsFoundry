@@ -47,6 +47,11 @@ class UserRequest(BaseModel):
         min_length=16
     )
 
+    keywords: str | None = Field(
+        default=None,
+        description="Mots clés pertinents pour la recherche d'actualités."
+    )
+
     category: str | None = Field(
         default=None,
         description="Catégorie principal de la demande."
@@ -149,6 +154,8 @@ Ne pas utiliser custom sans dates identifiables.
 RÈGLES :
 
 - subject doit identifier le sujet principal lorsque celui-ci est identifiable.
+- keywords indique les mots clés pertinents pour la recherche d'actualités.
+- Ignore les mots clés trop générique comme "actualités", "information", "news" et préfére les mots clés spécifiques au sujet recherché.
 - category doit identifier la catégorie principale lorsque qu'elle est identifiable.
 - Une demande ambiguë doit déclencher question.
 - question doit contenir une seule question précise.

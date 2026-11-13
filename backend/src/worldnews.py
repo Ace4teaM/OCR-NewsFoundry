@@ -66,7 +66,8 @@ async def request_worldnews(
 
             logger.log(
                 logging.ERROR if response.status_code >= 400 else logging.INFO,
-                "GET %s | HTTP %s | %.2f ms",
+                "GET %s | %s | HTTP %s | %.2f ms",
+                url,
                 params,
                 response.status_code,
                 duration
@@ -109,7 +110,7 @@ async def wn_receive_news(start: datetime, end: datetime = None, subject:str = N
     Raises:
         RuntimeError: Si la récupération des articles échoue.
     """
-    formatted_start = start.strftime("%Y-%m-%d %H:%M:%S")
+    formatted_start = start.strftime("%Y-%m-%d")
 
     params = {
         "api-key": WORLDNEWS_API_KEY,
@@ -118,7 +119,7 @@ async def wn_receive_news(start: datetime, end: datetime = None, subject:str = N
     }
 
     if end:
-        formatted_end = end.strftime("%Y-%m-%d %H:%M:%S")
+        formatted_end = end.strftime("%Y-%m-%d")
         params["latest-publish-date"] = formatted_end
         
     if subject:

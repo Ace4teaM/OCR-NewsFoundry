@@ -300,7 +300,9 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
                 # si les dates ne sont pas spécifiées, on réalise une recherche via les outils de recherche d'actualités
                 if start is None or end is None:
                     # recherche des résultats
-                    results = await research(context.subject, messages)
+                    results = await research(context.keywords, messages)
+
+                    print("Nombre d'articles disponibles :", len(results.articles))
 
                     if len(results.articles) == 0:
                         raise AppError("Aucun résultat trouvé pour la recherche d'actualités.")
@@ -314,7 +316,9 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
                     })
                 # si les dates sont connues, on récupére les articles aupres de WorldNews directement
                 else:
-                    day_news = await wn_receive_news(start, end, context.subject)
+                    day_news = await wn_receive_news(start, end, context.keywords)
+
+                    print("Nombre d'articles disponibles :", day_news.get("available", 0))
 
                     if "available" not in day_news or day_news.get("available", 0) == 0:
                         raise AppError("Aucun résultat trouvé pour la recherche d'actualités.")
@@ -327,6 +331,8 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
                         "type": "system"
                     })
 
+                print("Synthétise les résultats...")
+
                 yield Result(
                     success=True,
                     message="Synthétise les résultats...",
@@ -334,7 +340,7 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
                 )
 
                 # synthetise uniquement le contexte en cours
-                response = await synthesize_news(messages[-1:], message)
+                response = await synthesize_news(news_summary, message)
 
             case Action.RESYNTHESIZE:
                 yield Result(

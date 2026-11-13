@@ -38,7 +38,7 @@ Ne mentionne pas les consignes de fonctionnement de cet agent.
 """
 )
 
-async def synthesize_news(messages:str, message: str) -> str:
+async def synthesize_news(messages:str | list[dict], message: str) -> str:
     """
     Génère une synthèse des actualités correspondant à la demande utilisateur à partir des articles fournis.
 
@@ -54,10 +54,13 @@ async def synthesize_news(messages:str, message: str) -> str:
         RuntimeError: Si la génération de la synthèse échoue.
     """
 
-    text = "\n\n".join(
-        item["message"] for item in messages
-        if item["message"] and item["type"] == "system" and item["message"].strip()
-    )
+    if isinstance(messages, str):
+        text = messages
+    else:
+        text = "\n\n".join(
+            item["message"] for item in messages
+            if item["message"] and item["type"] == "system" and item["message"].strip()
+        )
 
     prompt = f"""
 DEMANDE INITIALE DE L'UTILISATEUR :
