@@ -184,7 +184,6 @@ export function PageProvider({ children }) {
             params.delete("chat_id");
             router.replace(`/?${params.toString()}`, { scroll: false });
             setMessages([]);
-            setRevues([]);
             return;
         }
 
