@@ -61,7 +61,7 @@ const CreateRevuesDialog = ({
                     Générer une revue de presse
                 </div>
 
-                <p>Donner un titre à votre revue de presse</p>
+                <p>Donnez un titre à votre revue de presse</p>
             </div>
 
             <form className={styles.form}>
