@@ -302,6 +302,9 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
                     # recherche des résultats
                     results = await research(context.subject, messages)
 
+                    if len(results.articles) == 0:
+                        raise AppError("Aucun résultat trouvé pour la recherche d'actualités.")
+
                     news_summary = wn_resume_news(results.articles)
 
                     messages.append({
@@ -312,6 +315,9 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
                 # si les dates sont connues, on récupére les articles aupres de WorldNews directement
                 else:
                     day_news = await wn_receive_news(start, end, context.subject)
+
+                    if "available" not in day_news or day_news.get("available", 0) == 0:
+                        raise AppError("Aucun résultat trouvé pour la recherche d'actualités.")
 
                     news_summary = wn_resume_news(day_news)
 
