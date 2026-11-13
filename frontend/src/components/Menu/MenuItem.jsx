@@ -2,6 +2,10 @@
 
 import styles from "./Menu.module.css";
 
+function formatDate(date) {
+    return new Date(date).toISOString().slice(0, 10);
+}
+
 export default function MenuItem({data, onSelect = () => console.log("Selection"), ...props}) {
     
   // paramètres
@@ -13,7 +17,7 @@ export default function MenuItem({data, onSelect = () => console.log("Selection"
   return (
     <li onClick={(e)=>onSelect(data)} {...props}>
         <span>{title}</span>
-        <span className={styles.created_at}>{created_at}</span>
+        <span className={styles.created_at}>{formatDate(created_at)}</span>
     </li>
   );
 }

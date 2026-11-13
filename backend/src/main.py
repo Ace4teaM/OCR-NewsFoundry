@@ -20,7 +20,7 @@ import jwt
 from ai import prompt_agent
 from ai_synthesis_agent import synthesize_news
 from ai_classify_agent import Action, classify_user_request, period_to_dates
-from ai_research_agent import research, search_news
+from ai_research_agent import research
 from ai_revues_agent import synthesize_revues
 from worldnews import Article, wn_receive_news, wn_resume_news
 from errors import AppError, handle_api_error
@@ -244,7 +244,7 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
 
     # archive le prompt
     messages.append({
-        "date": datetime.now().isoformat(),
+        "date": datetime.now(timezone.utc).isoformat(),
         "type": "user",
         "message": prompt
     })
@@ -286,12 +286,12 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
                 # si les dates ne sont pas spécifiées, on réalise une recherche via les outils de recherche d'actualités
                 if start is None or end is None:
                     # recherche des résultats
-                    results = await research(context.subject)
+                    results = await research(context.subject, messages)
 
                     news_summary = wn_resume_news(results.articles)
 
                     messages.append({
-                        "date": datetime.now().isoformat(),
+                        "date": datetime.now(timezone.utc).isoformat(),
                         "message": news_summary,
                         "type": "system"
                     })
@@ -302,7 +302,7 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
                     news_summary = wn_resume_news(day_news)
 
                     messages.append({
-                        "date": datetime.now().isoformat(),
+                        "date": datetime.now(timezone.utc).isoformat(),
                         "message": news_summary,
                         "type": "system"
                     })
@@ -357,7 +357,7 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
                     news_summary = wn_resume_news(results.articles)
 
                     messages.append({
-                        "date": datetime.now().isoformat(),
+                        "date": datetime.now(timezone.utc).isoformat(),
                         "message": news_summary,
                         "type": "system"
                     })
@@ -400,7 +400,7 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
     if response and chat:
 
         messages.append({
-            "date": datetime.now().isoformat(),
+            "date": datetime.now(timezone.utc).isoformat(),
             "type": "assistant",
             "message": response
         })
@@ -570,7 +570,7 @@ async def chats(data: CreateChat, current_user: Annotated[User, Depends(get_curr
     response = "Comment puis je vous aider ? Posez moi une question sur l'actualité."
     
     messages.append({
-        "date": datetime.now().isoformat(),
+        "date": datetime.now(timezone.utc).isoformat(),
         "message": response,
         "type": "assistant"
     })
