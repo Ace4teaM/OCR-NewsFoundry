@@ -51,3 +51,55 @@ export async function parseResponseAPI(response){
     console.error("Réponse inattendue du serveur", response, respData);
     throw new Error("Réponse inattendue du serveur");
 }
+
+/**
+ * Transforme la réponse d'une requête API en un objet Result
+ * @param response - Réponse de la requête HTTP
+ * @param onMessage - Fonction de rappel pour traiter les messages intermédiaires du flux
+ * @returns {Result} - Objet Result représentant le succès ou l'échec de la requête
+ */
+export async function parseStreamResponseAPI(response, onMessage) {
+
+    // La requête a échoué ?
+    if (!response.ok) {
+        const respData = await response.json().catch(() => null);
+        const result = new Result(false, response, respData?.detail );
+        onMessage(result);
+        return result;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+
+    let buffer = "";
+    let result = null;
+
+    while (true) {
+
+        const { done, value } = await reader.read();
+
+        buffer += decoder.decode(value || new Uint8Array(), {
+            stream: !done
+        });
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop();
+        
+        for (const line of lines) {
+
+            if (!line.trim()) continue;
+
+            result = JSON.parse(line);
+            onMessage(result);
+        }
+
+        if (done) break;
+    }
+
+    if (buffer.trim()) {
+        result = JSON.parse(buffer);
+        onMessage(result);
+    }
+
+    return result;
+}

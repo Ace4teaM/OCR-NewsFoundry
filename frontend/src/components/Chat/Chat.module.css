@@ -64,7 +64,7 @@
     margin-right: 60px;
 }
 
-.message[data-type="system"] .text code {
+.message[data-type="user"] .text code {
   background: color-mix(in srgb, var(--slate-dark) 12%, white) !important;
 }
 
@@ -89,6 +89,17 @@
 
 .message[data-type="system"] .text code {
   background: color-mix(in srgb, var(--slate-300) 12%, white) !important;
+}
+
+.message[data-type="loading"]{
+    margin-right: auto;
+    background-color: var(--slate-white);
+    color: var(--slate-dark);
+    margin-left: 60px;
+}
+
+.message[data-type="loading"] .text code {
+  background: color-mix(in srgb, var(--slate-white) 12%, white) !important;
 }
 
 .message[data-type="error"]{
@@ -133,6 +144,14 @@
 }
 
 .message[data-type="assistant"] .icon{
+    background-color: var(--slate-300);
+    color: var(--slate-dark);
+    position: absolute;
+    top: 0;
+    left: -40px;
+}
+
+.message[data-type="loading"] .icon{
     background-color: var(--slate-300);
     color: var(--slate-dark);
     position: absolute;

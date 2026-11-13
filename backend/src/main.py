@@ -8,7 +8,7 @@ from database import init_db, engine
 from fastapi import FastAPI, HTTPException, status, Response, Cookie, Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from sqlmodel import Session, insert, select
@@ -224,11 +224,12 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
 
     prompt = prompt.strip() if prompt else None
     if not prompt:
-        return Result(
+        yield Result(
             success=False,
             message="Le message ne peut pas être vide.",
             data=None
         )
+        return
 
     print("************************************************")
     print("Demande initiale:", prompt)
@@ -252,12 +253,18 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
     # agent de qualification
     # appel LLM pour obtenir une demande structurée
     try:
+        yield Result(
+            success=True,
+            message="Détermine le contexte de la demande...",
+            data=None
+        )
+
         context = await classify_user_request(prompt, messages)
         print("************************************************")
         print("Contexte obtenu:", context.model_dump_json(indent=2))
         print("************************************************")
     except Exception as e:
-        return Result(
+        yield Result(
             success=False,
             message="Impossible de déterminer le contexte de la demande",
             data={
@@ -265,6 +272,7 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
                 "erreur": str(e)
             }
         )
+        return
 
     try:
         match context.action:
@@ -275,6 +283,12 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
 
             # demande une recherche d'actualités
             case Action.NEWS_SEARCH | Action.NEWS_QUESTION:
+                yield Result(
+                    success=True,
+                    message="Recherche d'actualités...",
+                    data=None
+                )
+
                 # ajoute du contexte à la discution
                 # récupère les actualités du jour depuis l'API World News
                 start, end = period_to_dates(
@@ -307,10 +321,22 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
                         "type": "system"
                     })
 
+                yield Result(
+                    success=True,
+                    message="Synthétise les résultats...",
+                    data=None
+                )
+
                 # synthetise uniquement le contexte en cours
                 response = await synthesize_news(messages[-1:], message)
 
             case Action.RESYNTHESIZE:
+                yield Result(
+                    success=True,
+                    message="Synthétise la conversation...",
+                    data=None
+                )
+
                 # interoge le LLM avec le message de l'utilisateur
                 if messages:
                     response = await synthesize_news(messages, message)
@@ -323,6 +349,12 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
                     response=context.question
 
             case Action.GENERAL_QUESTION:
+                yield Result(
+                    success=True,
+                    message="Réflexion en cours...",
+                    data=None
+                )
+
                 # interoge le LLM avec le message de l'utilisateur
                 response = await prompt_agent(message)
 
@@ -335,6 +367,12 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
             case Action.MAKE_REVIEW:
                 # chat existant ?
                 if chat:
+                    yield Result(
+                        success=True,
+                        message="Synthétise la conversation...",
+                        data=None
+                    )
+
                     synthese = await synthesize_revues(
                         theme=context.subject,
                         messages=messages
@@ -351,6 +389,12 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
                         message = "Revue de presse générée avec succès."
                 # si pas de chat, on recherche des actualités
                 else:
+                    yield Result(
+                        success=True,
+                        message="Recherche des actualités...",
+                        data=None
+                    )
+
                     # recherche des résultats
                     results = await research(context.subject)
 
@@ -362,6 +406,12 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
                         "type": "system"
                     })
                     
+                    yield Result(
+                        success=True,
+                        message="Synthétise les actualités...",
+                        data=None
+                    )
+
                     resume = await synthesize_news(messages, message)
                     
                     revue = Revue(
@@ -387,7 +437,7 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
             app_error.details
         )
 
-        return Result(
+        yield Result(
             success=False,
             message=app_error.message,
             data={
@@ -395,6 +445,7 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
                 "erreur": str(app_error)
             }
         )
+        return
 
 
     if response and chat:
@@ -411,7 +462,7 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
         session.commit()
         session.refresh(chat)
 
-        return Result(
+        yield Result(
             success=True,
             message="Conversation générée avec succès.",
             data={
@@ -419,25 +470,28 @@ async def prompt(prompt: str, chat: Chat | None, session: Session | None, curren
                 "chat": chat
             }
         )
+        return
 
     if revue:
         session.add(revue)
         session.commit()
         session.refresh(revue)
 
-        return Result(
+        yield Result(
             success=True,
             message="Revue de presse générée avec succès.",
             data={
                 "revue": revue
             }
         )
+        return
 
-    return Result(
+    yield Result(
         success=False,
         message="Impossible de répondre à la demande.",
         data={}
     )
+    return
 
 
 @app.get("/")
@@ -664,15 +718,47 @@ async def user_prompt(
 ):
 
     with Session(engine) as session:
-        result = await prompt(
+        result = None
+
+        async for item in prompt(
             data.message,
             None,
             session,
             current_user
-        )
+        ):
+            result = item
 
         return ResponseApi(result.success, result.message, result.data)
 
+
+@app.post("/prompt_stream")
+async def user_prompt_stream(
+    data: CreateMessage,
+    current_user: Annotated[User, Depends(get_current_user)]
+):
+
+    async def generate():
+
+        with Session(engine) as session:
+
+            async for result in prompt(
+                data.message,
+                None,
+                session,
+                current_user
+            ):
+                response = ResponseApi(
+                    result.success,
+                    result.message,
+                    result.data
+                )
+
+                yield json.dumps(jsonable_encoder(response)) + "\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="application/x-ndjson" # Newline Delimited JSON
+    )
 
 @app.post("/chats/{chat_id}/messages")
 async def create_message(
@@ -687,15 +773,55 @@ async def create_message(
         if chat.user_id != current_user.id:
             raise HTTPException(status_code=401, detail="Non autorisé")
 
-        result = await prompt(
+        result = None
+
+        async for item in prompt(
             data.message,
             chat,
             session,
             current_user
-        )
+        ):
+            result = item
 
         return ResponseApi(result.success, result.message, result.data)
 
+
+@app.post("/chats/{chat_id}/messages_stream")
+async def create_message_stream(
+    chat_id: int,
+    data: CreateMessage,
+    current_user: Annotated[User, Depends(get_current_user)]
+):
+
+    with Session(engine) as session:
+        chat = session.get(Chat, chat_id)
+        if not chat:
+            raise HTTPException(status_code=404, detail="Chat introuvable")
+        if chat.user_id != current_user.id:
+            raise HTTPException(status_code=401, detail="Non autorisé")
+
+        async def generate():
+
+            async for result in prompt(
+                data.message,
+                chat,
+                session,
+                current_user
+            ):
+                response = ResponseApi(
+                    result.success,
+                    result.message,
+                    result.data
+                )
+
+                encoded = json.dumps(jsonable_encoder(response))
+
+                yield encoded + "\n"
+
+        return StreamingResponse(
+            generate(),
+            media_type="application/x-ndjson" # Newline Delimited JSON
+        )
 
 @app.post("/chats/{chat_id}/revues")
 async def create_revue(

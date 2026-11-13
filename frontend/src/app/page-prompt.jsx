@@ -9,89 +9,112 @@ import {usePost} from "@/hooks/Http";
 import styles from "./page.module.css";
 import {Button} from "@/components/Buttons";
 import {Navigation} from "@/components/Icons";
+import { parseStreamResponseAPI } from "@/utils/result.js";
 
 
 export default function Component() {
-  const router = useRouter();
+    const router = useRouter();
 
-  const formRef = useRef(null);
+    const formRef = useRef(null);
 
-  const { selectedItem, setSelectedItem, setItems, setRevues, setContentView, messages, setMessages } = usePageContext();
-  const { setError } = useAppContext();
+    const { selectedItem, setSelectedItem, setItems, setRevues, setContentView, messages, setMessages } = usePageContext();
+    const { setError,setNotification } = useAppContext();
 
-  const [ prompt, setPrompt ] = useState("")
+    const [ prompt, setPrompt ] = useState("")
 
     const [postRequest, setPostRequest] = useState({
         url: null,
         data: null,
+        handleResponse: undefined, // défaut
     });
 
-    const post = usePost(postRequest.url, postRequest.data);
+    const post = usePost(postRequest.url, postRequest.data, undefined, postRequest.handleResponse);
 
-  useEffect(()=>{
-    if(post.hasError == true)
-    {
-        if(post.result?.data?.erreur)
+    useEffect(()=>{
+        if(post.hasError == true)
         {
-            // ajoute la réponse à la liste des messages existants
-            if(selectedItem)
+            if(post.result?.data?.erreur)
             {
-                const newMessage = {
-                    date: new Date().toISOString(),
-                    message: post.result?.data?.erreur,
-                    type: "error"
-                };
+                // ajoute la réponse à la liste des messages existants
+                if(selectedItem)
+                {
+                    const newMessage = {
+                        date: new Date().toISOString(),
+                        message: post.result?.data?.erreur,
+                        type: "error"
+                    };
 
-                setMessages(prev => [...prev, newMessage]);
+                    setMessages(prev => [...prev.filter(item => item.type !== "loading"), newMessage]);
+                }
+                else
+                    setError(post.result?.data?.erreur);
             }
             else
-                setError(post.result?.data?.erreur);
+                setError(post.result.message);
         }
-        else
-            setError(post.result.message);
-    }
-  }, [post.hasError])
+    }, [post.hasError])
 
-  useEffect(()=>{
-    if(post.hasSuccess == true)
-    {
-        const data = post.result?.data;
-
-        // charge une nouvelle discussion
-        if(!selectedItem && data?.chat)
+    useEffect(()=>{
+        if(post.hasSuccess == true)
         {
-            console.log("Adding new chat")
-            const newChat = data?.chat;
-            setItems(prev => [...prev, newChat]);
-            setSelectedItem(newChat);
-        }
-        
-        // charge une revue de presse
-        if(data?.revue)
-        {
-            console.log("Adding new revue")
-            const newRevue = data?.revue;
-            setRevues(prev => [...prev, newRevue]);
-            setSelectedItem(null);
-            setContentView("revues");
-        }
+            const data = post.result?.data;
 
-        // ajoute la réponse à la discussion existantes
-        if(selectedItem && data?.response)
-        {       
-            console.log("Adding new message to existing chat")     
-            const newMessage = {
-                date: new Date().toISOString(),
-                message: post.result?.data?.response,
-                type: "assistant"
-            };
+            // charge une nouvelle discussion
+            if(!selectedItem && data?.chat)
+            {
+                const newChat = data?.chat;
+                setItems(prev => [...prev, newChat]);
+                setSelectedItem(newChat);
+            }
+            
+            // charge une revue de presse
+            if(data?.revue)
+            {
+                const newRevue = data?.revue;
+                setRevues(prev => [...prev, newRevue]);
+                setSelectedItem(null);
+                setContentView("revues");
+            }
 
-            setMessages(prev => [...prev, newMessage]);
+            // ajoute la réponse à la discussion existantes
+            if(selectedItem && data?.response)
+            {       
+                const newMessage = {
+                    date: new Date().toISOString(),
+                    message: post.result?.data?.response,
+                    type: "assistant"
+                };
+
+                setMessages(prev => [...prev.filter(item => item.type !== "loading"), newMessage]);
+            }
+                
+            setPrompt("");
         }
-         
-        setPrompt("");
+    }, [post.hasSuccess])
+
+    // Traite les résultats intermédiaires du flux
+    function onMessage(result) {
+        if(result.success) {
+            // si il s'agit d'une notification mais pas des données finales...
+            if(result?.message && !result?.data)
+            {
+                if(selectedItem)
+                {       
+                    const newMessage = {
+                        date: new Date().toISOString(),
+                        message: result?.message,
+                        type: "loading"
+                    };
+
+                    setMessages(prev => [...prev.filter(item => item.type !== "loading"), newMessage]);
+                }
+                else
+                    setNotification(result?.message);
+            }
+        } else {
+            console.error("onMessage Error:", result);
+        }
     }
-  }, [post.hasSuccess])
 
     function handleKeyDown(event) {
         if (event.key === "Enter" && !event.shiftKey) {
@@ -107,8 +130,11 @@ export default function Component() {
     if(!selectedItem)
     {
         setPostRequest({
-            url: `/prompt`,
-            data: { message: prompt }
+            url: `/prompt_stream`,
+            data: { message: prompt },
+            handleResponse: async (response) => {
+                return await parseStreamResponseAPI(response, onMessage);
+            }
         });
     }
     // discussion existante
@@ -125,8 +151,11 @@ export default function Component() {
         setMessages(prev => [...prev, newMessage]);
 
         setPostRequest({
-            url: `/chats/${selectedItem?.id}/messages`,
-            data: { message: prompt }
+            url: `/chats/${selectedItem?.id}/messages_stream`,
+            data: { message: prompt },
+            handleResponse: async (response) => {
+                return await parseStreamResponseAPI(response, onMessage);
+            }
         });
     }
 

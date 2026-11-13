@@ -1,6 +1,6 @@
 import { useRef, useEffect } from "react";
 import styles from "./Chat.module.css";
-import { Logo, User } from "@/components/Icons";
+import { Logo, User, Loading } from "@/components/Icons";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {SquareExclamationPoint , SquareText} from "lucide-react";
@@ -116,7 +116,7 @@ dans le domaine de la santé et de l'éducation.`
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.message}</ReactMarkdown>
                     </div>
                     <div className={styles.date}>{formatDateTime(item.date)}</div>
-                    <div className={styles.icon}>{item.type === "user" ? <User /> : item.type === "error" ? <SquareExclamationPoint /> :  item.type === "system" ? <SquareText /> : <Logo />}</div>
+                    <div className={styles.icon}>{item.type === "user" ? <User /> : item.type === "error" ? <SquareExclamationPoint /> : item.type === "loading" ? <Loading /> :  item.type === "system" ? <SquareText /> : <Logo />}</div>
                 </div>
             ))}
         </div>
