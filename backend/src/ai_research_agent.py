@@ -1,6 +1,14 @@
-from datetime import date, datetime
+from datetime import date
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, RunContext, capture_run_messages
+
+from pydantic_ai.messages import (
+    ModelRequest,
+    ModelResponse,
+    UserPromptPart,
+    TextPart,
+)
+
 from dataclasses import dataclass, field
 
 from ai import model, current_agent, hooks
@@ -115,8 +123,36 @@ async def get_news(
 
     return news
 
+def build_history(messages: list[dict]):
+
+    history = []
+
+    for item in messages:
+
+        content = item.get("message")
+
+        if not isinstance(content, str) or not content.strip():
+            continue
+
+        if item["type"] == "user":
+            history.append(
+                ModelRequest(
+                    parts=[UserPromptPart(content=content)]
+                )
+            )
+
+        elif item["type"] == "assistant":
+            history.append(
+                ModelResponse(
+                    parts=[TextPart(content=content)]
+                )
+            )
+
+    return history
+
 async def research(
     message: str,
+    messages: list[dict] | None = None,
 ) -> ResearchResult:
 
     deps = ResearchDeps(subject=message)
@@ -133,6 +169,7 @@ async def research(
     try:
         result = await research_agent.run(
             prompt,
+            message_history=build_history(messages),
             deps=deps
         )
 
