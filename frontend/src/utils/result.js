@@ -1,4 +1,3 @@
-
 /**
  * Représente un objet de résultat utilisée par les mééthodes et requêtes de l'application
  * @param success {bool} - Indique si le traitement est un succès
@@ -32,9 +31,9 @@ export async function parseResponseAPI(response){
     }
 
     // La requête a échouée ?
-    if (!response.ok && respData.detail)
+    if (!response.ok)
     {
-        return new Result(false, respData, respData.detail);
+        return new Result(false, response, respData?.detail);
     }
 
     // La demande a réussie ?

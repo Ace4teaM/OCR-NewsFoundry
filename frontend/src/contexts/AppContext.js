@@ -5,6 +5,7 @@ import {ModalDialog} from "@/components/Containers";
 import ErrorNotification from "@/components/ErrorNotification/ErrorNotification";
 import InfoNotification from "@/components/InfoNotification/InfoNotification";
 import { fetchApi } from "@/utils/http";
+import { useRouter } from "next/navigation";
 
 const AppContext = createContext(null);
 
@@ -14,9 +15,10 @@ export function AppProvider({ children }) {
   const dialogRef = useRef(null);
   const [ error, setError ] = useState(null)
   const [ notification, setNotification ] = useState(null)
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(undefined);
   const [loading, setLoading] = useState(true);
   const firstAuth = useRef(null);
+  const router = useRouter();
 
   function openDialog(Component, props = {}, success = () => {}, resolve = (result) => {}) {
       setDialog({
@@ -42,6 +44,15 @@ export function AppProvider({ children }) {
     dialogInst.showModal();
 
   },[dialog])
+
+  useEffect(()=>{
+    // non authentifié
+    if(user === null && window.location.pathname !== "/login")
+    {
+      // Redirection vers l'accueil
+      router.replace("/login");
+    }
+  },[user])
 
   useEffect(() => {
       if (firstAuth.current !== null)
