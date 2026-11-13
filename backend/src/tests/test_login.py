@@ -203,3 +203,35 @@ def test_user_cannot_access_another_users_chat(client, user):
     response = client.get("/chats/42")
 
     assert response.status_code == 401
+    
+    
+def test_user_cannot_update_another_users_chat(client, user):
+    """Un utilisateur ne peut pas modifier le chat d'un autre utilisateur."""
+
+    # L'utilisateur connecté possède l'identifiant 1.
+    FakeSession.user = user
+
+    # Le chat demandé appartient à l'utilisateur 2.
+    FakeSession.chat = SimpleNamespace(
+        id=42,
+        user_id=2,
+        title="Discussion privée",
+        created_at="2026-10-29 12:00:00",
+        messages="[]",
+    )
+
+    # Authentification de l'utilisateur 1.
+    login_response = client.post(
+        "/login",
+        json={
+            "email": user.email,
+            "password": "MotDePasse-Test-123",
+        },
+    )
+
+    assert login_response.status_code == 200
+
+    # Tentative d'accès au chat de l'utilisateur 2.
+    response = client.post("/chats/42/messages", json={"message": "Quelles sont les dernières nouvelles en politique ?"})
+
+    assert response.status_code == 401
