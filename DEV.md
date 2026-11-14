@@ -347,11 +347,12 @@ Le projet implémente les API suivantes:
 
 La plupart des API propose un service gratuit mais limité:
 
-| API       | Limitation                   | Consultation                                |
-| --------- | ---------------------------- | ------------------------------------------- |
-| worldnews | Requêtes par jour (max 50)   | https://worldnewsapi.com/console/#Dashboard |
-| mistral   | Requêtes par minute (max 2)  | https://admin.mistral.ai/organization/usage |
-| gemini    | Requêtes par minute (max 10) | https://aistudio.google.com/rate-limit      |
+| API       | Limitation                     | Consultation                                                 |
+| --------- | ------------------------------ | ------------------------------------------------------------ |
+| worldnews | Requêtes par jour (max 50)     | https://worldnewsapi.com/console/#Dashboard                  |
+| worldnews | Historique de 30 jours maximum | Dans sa version gratuit WorldNews ne permet pas de rechercher des articles de plus de 30 jours. Une limitation technique est codée dans le fichier `backend/src/ai_research_agent.py` |
+| mistral   | Requêtes par minute (max 2)    | https://admin.mistral.ai/organization/usage                  |
+| gemini    | Requêtes par minute (max 10)   | https://aistudio.google.com/rate-limit                       |
 
 En cas de dépassement une erreur est affichée à l'utilisateur et des logs sont produits.
 
