@@ -1,67 +1,71 @@
-# NewsFoundry
+![](.\assets\logo.png)
 
-## Besoins fonctionnels
+**L'information décryptée, organisée et synthétisée par l'intelligence artificielle.**
 
-- L'utilisateur peut se connecter.
-- L’utilisateur peut voir la liste de ses discussions passées.
-- L’utilisateur peut démarrer une nouvelle discussion ou reprendre une ancienne discussion.
-- Un utilisateur n’est pas autorisé à accéder aux discussions d’un autre utilisateur.
-- Le LLM répond aux messages envoyés par l’utilisateur.
-- L'utilisateur peut faire générer une revue de presse à partir d'une discussion.
-- L'application doit afficher des messages d'erreur à l'utilisateur final en cas d'erreur.
+News Foundry est une application dédiée à la veille informationnelle et à la création de revues de presse. Elle accompagne les utilisateurs dans leur recherche d'informations, leur permet d'explorer l'actualité sur des sujets précis et facilite la production de synthèses documentées.
 
-## Prérequis
+L'objectif est de transformer un flux continu d'informations en une sélection d'actualités pertinente, structurée et facile à consulter.
 
-- Docker
-- Python 3.13
-- uv
-- Node.js 22.19
+## Présentation
 
-## Installation
+News Foundry propose  à l'utilisateur de découvrir l'actualité récente en créant des Chats dédiés, approfondir les sujets avec l'assistant intelligent, puis transformer sa sélection d'articles en une revue de presse organisée.
 
-1. Cloner le repository
-2. Démarrer le backend aved les instructions du fichier `backend/README.md`
-3. Initialiser un projet Next.js dans un dossier `frontend/`
+## Fonctionnalités
 
-## Choix technologiques
+### Actualités 
 
-### Frontend
+Accéder rapidement aux dernières actualités et découvrir les informations récentes.
 
-**Next.js**
+- Consultation des actualités du moment.
+- Découverte de nouveaux sujets d'information.
+- Constitution d'une première sélection d'articles à explorer.
 
-### Backend
+### Recherche conversationnelle
 
-- **Python** pour bénéficier de son écosystème de librairies IA
-- **FastAPI** pour le développement de l'API
-- Connection avec des **JWT**
-- **SQLModel** comme ORM : fait pour bien marcher avec FastAPI.
-  - Branché à une base de données **PostgreSQL**
-- **PydanticAI** comme client qui s'intégrera aussi bien avec les autres outils de la stack backend
-- Attention à la **sécurité des données**. On ne veut pas qu’un utilisateur puisse accéder aux chats d’un autre utilisateur ou les modifier.
-  - Le produit aura rapidement beaucoup d’utilisateurs professionnels il est donc crucial de garantir le fonctionnement correct de cette fonctionnalité par l'**implémentation de tests automatisés qui s'exécutent par une Github Action**.
-- Pour les sources de news, on utilisera l’API [**WorldNewsAPI**](https://worldnewsapi.com/).
-- Pour déployer on mettra le frontend sur **Vercel** et le backend sur **Railway**.
+Un assistant intelligent permet d'approfondir une recherche directement depuis une interface de discussion.
 
-### Documentation
+- Explorer un sujet d'actualité.
+- Affiner progressivement une recherche.
+- Rechercher des articles et des références complémentaires.
+- Enrichir sa sélection au fil des échanges.
+- Orienter les recherches selon ses besoins.
 
-Une documentation claire devra être rédigée et ajoutée dans un dossier `docs/`.
+L'objectif est de rendre la recherche d'informations plus naturelle et interactive.
 
-Elle devra inclure des suggestions d'amélioration concernant la qualité et la performance de la partie IA du système. Chaque recommandation doit être illustrée par une une métrique ou un exemple, une proposition d’implémentation réalisable, ainsi qu'un objectif mesurable.
+### Création de revues de presse
 
+Transformer une sélection d'articles en une synthèse structurée autour d'un sujet donné.
 
-Par ailleurs, pour faciliter la maintenance du projet à long terme, le code du projet devra être clair et bien structuré, accompagné de commentaires qui expliquent les sections de code complexes.
+- Définir le thème de la revue de presse.
+- Générer une synthèse à l'aide de l'intelligence artificielle.
+- Retrouver les revues de presse précédemment créées.
 
-### Deploiement
+Chaque revue de presse constitue un support de lecture et de compréhension permettant de retrouver l'essentiel des informations sur un sujet.
 
-L'url de l'application déployée devra être ajouté dans la documentation.
+## Une expérience en trois étapes
 
-#### Frontend
+1. **Découvrir** : consulter les dernières actualités et identifier les sujets intéressants.
+2. **Explorer** : dialoguer avec l'assistant pour approfondir les recherches et enrichir sa sélection.
+3. **Synthétiser** : générer et conserver une revue de presse à partir des informations collectées.
 
-Déployer le frontend sur [Vercel](https://vercel.com/dashboard).
+## Objectifs du projet
 
-#### Backend
+News Foundry cherche à rendre la veille informationnelle plus accessible et plus efficace.
 
-Déployer le backend sur [Railway](https://railway.com/dashboard).
+Le projet repose sur plusieurs principes :
 
-> Un Dockerfile est déjà présent pour faciliter le déploiement. Il faudra simplement référencer `backend/` comme "Root Directory" après avoir connecté le repository.
-> La base de donnée postgres peut être créée via Railway dans le même projet que le backend.
+- **Centralisation** : regrouper les informations utiles dans un même espace.
+- **Pertinence** : faciliter la sélection des articles en fonction d'un sujet.
+- **Interaction** : permettre une exploration progressive de l'information.
+- **Synthèse** : réduire le temps nécessaire à la compréhension d'un ensemble d'actualités.
+- **Capitalisation** : conserver les revues de presse pour pouvoir les consulter ultérieurement.
+
+## Vision
+
+News Foundry a vocation à devenir un véritable espace de travail dédié à l'information : un environnement dans lequel on peut découvrir, rechercher, comprendre et organiser l'actualité.
+
+L'intelligence artificielle ne se limite pas à résumer des articles. Elle intervient comme un assistant dans le processus de veille, depuis l'exploration des sources jusqu'à la production d'une synthèse cohérente.
+
+---
+
+**News Foundry — De l'actualité à la connaissance.**
